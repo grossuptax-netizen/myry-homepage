@@ -31,3 +31,7 @@ lerna-debug.log*
 
 # misc
 .DS_Store
+
+# pm2
+.pm2/
+ecosystem.config.cjs
