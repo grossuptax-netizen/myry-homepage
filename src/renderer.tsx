@@ -37,12 +37,34 @@ export const renderer = jsxRenderer(({ children }) => {
                 theme: {
                   extend: {
                     colors: {
+                      /* 메인: 버건디 레드 (CTA·로고·강조) */
                       brand: {
-                        DEFAULT: '#0c5ab9',
-                        light: '#cfe0f5',
-                        soft: '#eef4fc',
-                        dark: '#084a99'
-                      }
+                        DEFAULT: '#8B1A1A',
+                        light: '#e9c9c9',
+                        soft: '#f6e9e9',
+                        dark: '#6e1414'
+                      },
+                      /* 서브: 네이비 블루 (신뢰 섹션·푸터) */
+                      navy: {
+                        DEFAULT: '#1A2A4A',
+                        light: '#2c4172',
+                        soft: '#e3e7ef',
+                        dark: '#101a30'
+                      },
+                      /* 포인트: 골드 (아이콘·인포그래픽) */
+                      gold: {
+                        DEFAULT: '#C9A84C',
+                        light: '#e6d39a',
+                        soft: '#f7f0d8',
+                        dark: '#a88a35'
+                      },
+                      /* 배경: 크림 화이트 */
+                      cream: {
+                        DEFAULT: '#F5F0EB',
+                        soft: '#fbf8f4'
+                      },
+                      /* 본문 텍스트: 다크 그레이 */
+                      ink: '#3D3D3D'
                     },
                     fontFamily: {
                       sans: ['"Noto Sans KR"', 'sans-serif']
@@ -55,7 +77,7 @@ export const renderer = jsxRenderer(({ children }) => {
         />
         <link href="/static/style.css" rel="stylesheet" />
       </head>
-      <body class="font-sans text-gray-900 bg-white antialiased">{children}</body>
+      <body class="font-sans text-ink bg-cream antialiased">{children}</body>
     </html>
   )
 })

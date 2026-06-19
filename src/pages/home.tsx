@@ -4,19 +4,19 @@ import type { FC } from 'hono/jsx'
 const Header: FC = () => (
   <header
     id="site-header"
-    class="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100"
+    class="fixed top-0 inset-x-0 z-50 bg-cream/95 backdrop-blur border-b border-gold/30"
   >
     <nav class="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
       <a href="#hero" class="flex items-center gap-2 font-black text-xl tracking-tight">
-        <span class="inline-flex w-9 h-9 rounded-xl bg-brand text-white items-center justify-center">
+        <span class="inline-flex w-9 h-9 rounded-xl bg-brand text-white items-center justify-center ring-2 ring-gold/60 shadow-sm shadow-brand/20">
           <i class="fas fa-calculator text-sm"></i>
         </span>
-        <span>
+        <span class="text-navy">
           명륜<span class="text-brand">세무회계</span>
         </span>
       </a>
 
-      <ul class="hidden md:flex items-center gap-7 text-sm font-medium text-gray-600">
+      <ul class="hidden md:flex items-center gap-7 text-sm font-medium text-navy/80">
         <li><a href="#strength" class="hover:text-brand transition">업종 전문성</a></li>
         <li><a href="#consulting" class="hover:text-brand transition">절세 컨설팅</a></li>
         <li><a href="#points" class="hover:text-brand transition">차별화 포인트</a></li>
@@ -26,7 +26,7 @@ const Header: FC = () => (
 
       <a
         href="#consult"
-        class="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white text-sm font-bold px-4 py-2.5 rounded-full transition shadow-sm shadow-brand/30"
+        class="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white text-sm font-bold px-4 py-2.5 rounded-full transition shadow-md shadow-brand/30 ring-1 ring-gold/50"
       >
         <i class="fas fa-comment-dots"></i> 무료 상담신청
       </a>
@@ -38,21 +38,21 @@ const Header: FC = () => (
 const Hero: FC = () => (
   <section
     id="hero"
-    class="relative pt-32 pb-24 bg-gradient-to-b from-brand-soft via-white to-white overflow-hidden"
+    class="relative pt-32 pb-24 bg-gradient-to-b from-cream-soft via-cream to-cream overflow-hidden"
   >
-    <div class="absolute -top-24 -right-24 w-96 h-96 bg-brand-light rounded-full blur-3xl opacity-60"></div>
-    <div class="absolute top-40 -left-24 w-72 h-72 bg-brand-light rounded-full blur-3xl opacity-40"></div>
+    <div class="absolute -top-24 -right-24 w-96 h-96 bg-brand-light rounded-full blur-3xl opacity-50"></div>
+    <div class="absolute top-40 -left-24 w-72 h-72 bg-gold-light rounded-full blur-3xl opacity-40"></div>
 
     <div class="relative max-w-6xl mx-auto px-5 text-center">
-      <span class="inline-block bg-white border border-brand/30 text-brand text-sm font-bold px-4 py-1.5 rounded-full mb-6 shadow-sm">
-        정육점 · 축산물 세무 전문
+      <span class="inline-flex items-center gap-2 bg-white border border-gold text-brand text-sm font-bold px-4 py-1.5 rounded-full mb-6 shadow-sm">
+        <i class="fas fa-award text-gold"></i> 정육점 · 축산물 세무 전문
       </span>
-      <h1 class="text-4xl md:text-6xl font-black leading-tight tracking-tight">
+      <h1 class="text-4xl md:text-6xl font-black leading-[2.5] tracking-tight text-navy">
         비용은 <span class="text-brand">더 낮게</span>
         <br />
         절세는 <span class="text-brand">더 크게</span>
       </h1>
-      <p class="mt-6 text-lg md:text-xl text-gray-600 leading-relaxed">
+      <p class="mt-6 text-lg md:text-xl text-ink/80 leading-relaxed">
         명륜세무회계는 정육점·축산물 전문 세무사가
         <br class="hidden md:block" />
         사업의 시작부터 성장까지 함께합니다.
@@ -61,18 +61,18 @@ const Hero: FC = () => (
       <div class="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
         <a
           href="#consult"
-          class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark text-white font-bold px-8 py-4 rounded-full text-lg transition shadow-lg shadow-brand/30"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark text-white font-bold px-8 py-4 rounded-full text-lg transition shadow-lg shadow-brand/30 ring-1 ring-gold/50"
         >
           <i class="fas fa-comment-dots"></i> 1분 무료 상담신청
         </a>
         <a
           href="#process"
-          class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-800 font-bold px-8 py-4 rounded-full text-lg transition border border-gray-200"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-cream-soft text-navy font-bold px-8 py-4 rounded-full text-lg transition border border-navy/20"
         >
           이용방법 보기 <i class="fas fa-arrow-down text-sm"></i>
         </a>
       </div>
-      <p class="mt-5 text-sm text-gray-400">월 8만원부터 시작하는 업종 특화 세무 서비스</p>
+      <p class="mt-5 text-sm text-ink/50">월 8만원부터 시작하는 업종 특화 세무 서비스</p>
     </div>
   </section>
 )
@@ -86,18 +86,18 @@ const stats = [
 ]
 
 const Stats: FC = () => (
-  <section id="stats" class="py-16 bg-white">
+  <section id="stats" class="py-16 bg-cream">
     <div class="max-w-6xl mx-auto px-5">
-      <h2 class="text-center text-2xl md:text-3xl font-black leading-snug">
+      <h2 class="text-center text-2xl md:text-3xl font-black leading-[2.75] text-navy">
         수많은 정육점 사장님들이 <span class="text-brand">명륜세무회계</span>를
         <br class="md:hidden" /> 선택해주시는 이유는 분명합니다
       </h2>
 
       <div class="mt-10 grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((s) => (
-          <div class="bg-brand-soft rounded-2xl p-6 text-center border border-brand/10">
+          <div class="bg-white rounded-2xl p-6 text-center border border-gold/40 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
             <div class="text-3xl md:text-4xl font-black text-brand">{s.value}</div>
-            <div class="mt-2 text-sm text-gray-500 font-medium">{s.label}</div>
+            <div class="mt-2 text-sm text-navy/70 font-medium">{s.label}</div>
           </div>
         ))}
       </div>
@@ -118,26 +118,26 @@ const industries = [
 ]
 
 const Strength: FC = () => (
-  <section id="strength" class="py-20 bg-brand-soft">
+  <section id="strength" class="py-20 bg-cream-soft">
     <div class="max-w-6xl mx-auto px-5">
-      <p class="text-center text-brand font-bold mb-3">업종별 전문성</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-snug">
+      <p class="text-center text-brand font-bold mb-3 tracking-wider">업종별 전문성</p>
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75] text-navy">
         정육점에
         <br />
         100% 특화된 세무사 집단
       </h2>
-      <p class="mt-5 text-center text-gray-600 leading-relaxed">
+      <p class="mt-5 text-center text-ink/75 leading-relaxed">
         식육판매업의 의제매입세액공제부터 한우·한돈 매입 관리, 축산물이력제 매출 검증까지,
         <br class="hidden md:block" /> 명륜세무회계에는 정육 업종을 가장 잘 아는 전문가들이 모여있습니다.
       </p>
 
       <div class="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
         {industries.map((it) => (
-          <div class="bg-white rounded-2xl p-6 text-center hover:shadow-lg hover:-translate-y-1 transition border border-gray-100">
-            <div class="w-14 h-14 mx-auto rounded-2xl bg-brand-soft text-brand flex items-center justify-center mb-3">
+          <div class="bg-white rounded-2xl p-6 text-center hover:shadow-lg hover:-translate-y-1 transition border border-gold/30">
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-gold-soft text-gold-dark flex items-center justify-center mb-3 ring-1 ring-gold/40">
               <i class={`fas ${it.icon} text-xl`}></i>
             </div>
-            <div class="font-bold">{it.name}</div>
+            <div class="font-bold text-navy">{it.name}</div>
           </div>
         ))}
       </div>
@@ -168,28 +168,28 @@ const consultCards = [
 ]
 
 const Consulting: FC = () => (
-  <section id="consulting" class="py-20 bg-white">
+  <section id="consulting" class="py-20 bg-cream">
     <div class="max-w-6xl mx-auto px-5">
-      <p class="text-center text-brand font-bold mb-3">무료 컨설팅</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-snug">
+      <p class="text-center text-brand font-bold mb-3 tracking-wider">무료 컨설팅</p>
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75] text-navy">
         세무 서비스와 컨설팅을
         <br />
         모두 경험해보세요
       </h2>
-      <p class="mt-5 text-center text-gray-600 leading-relaxed">
+      <p class="mt-5 text-center text-ink/75 leading-relaxed">
         명륜세무회계 정육점 고객님 중 <span class="text-brand font-bold">60%</span>가 컨설팅을 통해
         <br class="hidden md:block" /> 평균 <span class="text-brand font-bold">수백만원 이상</span> 절세하셨어요.
       </p>
 
       <div class="mt-12 grid md:grid-cols-3 gap-5">
         {consultCards.map((c) => (
-          <div class="rounded-2xl p-7 border border-gray-100 shadow-sm hover:shadow-lg transition bg-gradient-to-b from-white to-brand-soft/40">
-            <div class="w-14 h-14 rounded-2xl bg-brand text-white flex items-center justify-center mb-5">
+          <div class="rounded-2xl p-7 border border-gold/30 shadow-sm hover:shadow-xl hover:-translate-y-1 transition bg-white">
+            <div class="w-14 h-14 rounded-2xl bg-brand text-white flex items-center justify-center mb-5 ring-2 ring-gold/50 shadow-md shadow-brand/20">
               <i class={`fas ${c.icon} text-xl`}></i>
             </div>
-            <h3 class="text-lg font-black leading-snug">{c.title}</h3>
-            <p class="mt-3 text-sm text-gray-600 leading-relaxed">{c.desc}</p>
-            <div class="mt-5 inline-flex items-center gap-2 text-sm font-bold text-brand bg-brand-soft px-3 py-1.5 rounded-full">
+            <h3 class="text-lg font-black leading-[2.75] text-navy">{c.title}</h3>
+            <p class="mt-3 text-sm text-ink/75 leading-relaxed">{c.desc}</p>
+            <div class="mt-5 inline-flex items-center gap-2 text-sm font-bold text-gold-dark bg-gold-soft px-3 py-1.5 rounded-full border border-gold/40">
               <i class="fas fa-check-circle"></i> {c.highlight}
             </div>
           </div>
@@ -214,22 +214,26 @@ const points = [
 ]
 
 const Points: FC = () => (
-  <section id="points" class="py-20 bg-gray-900 text-white">
-    <div class="max-w-6xl mx-auto px-5">
-      <p class="text-center text-brand font-bold mb-3">차별화 포인트</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-snug">
+  <section id="points" class="relative py-20 bg-navy text-white overflow-hidden">
+    {/* 네이비 배경 위 골드 앬센트 */}
+    <div class="absolute -top-20 -left-20 w-80 h-80 bg-gold/10 rounded-full blur-3xl"></div>
+    <div class="absolute -bottom-24 -right-20 w-96 h-96 bg-brand/20 rounded-full blur-3xl"></div>
+
+    <div class="relative max-w-6xl mx-auto px-5">
+      <p class="text-center text-gold font-bold mb-3 tracking-wider">차별화 포인트</p>
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75]">
         명륜세무회계는
         <br />
-        무엇이 다를까요?
+        무엇이 <span class="text-gold-gradient">다를까요?</span>
       </h2>
 
       <div class="mt-12 grid sm:grid-cols-2 gap-3">
         {points.map((p, i) => (
-          <div class="flex items-center gap-4 bg-white/5 hover:bg-white/10 rounded-xl px-5 py-4 transition border border-white/5">
-            <span class="shrink-0 w-10 h-10 rounded-lg bg-brand flex items-center justify-center font-black">
+          <div class="flex items-center gap-4 bg-white/5 hover:bg-white/10 rounded-xl px-5 py-4 transition border border-gold/15">
+            <span class="shrink-0 w-10 h-10 rounded-lg bg-brand flex items-center justify-center font-black text-white ring-1 ring-gold/60">
               {String(i + 1).padStart(2, '0')}
             </span>
-            <span class="font-medium text-gray-100">{p}</span>
+            <span class="font-medium text-white/90">{p}</span>
           </div>
         ))}
       </div>
@@ -245,24 +249,24 @@ const employeeServices = [
 ]
 
 const EmployeeService: FC = () => (
-  <section id="employee" class="py-20 bg-brand-soft">
+  <section id="employee" class="py-20 bg-cream-soft">
     <div class="max-w-6xl mx-auto px-5">
-      <p class="text-center text-brand font-bold mb-3">직원관리 서비스</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-snug">
+      <p class="text-center text-brand font-bold mb-3 tracking-wider">직원관리 서비스</p>
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75] text-navy">
         전문가가 진행하는 직원관리
       </h2>
-      <p class="mt-5 text-center text-gray-600">
+      <p class="mt-5 text-center text-ink/75">
         임금명세서, 각종 지원금, 세금신고를 도와드립니다.
       </p>
 
       <div class="mt-12 grid md:grid-cols-3 gap-5">
         {employeeServices.map((s) => (
-          <div class="bg-white rounded-2xl p-7 text-center border border-gray-100 shadow-sm hover:shadow-lg transition">
-            <div class="w-16 h-16 mx-auto rounded-2xl bg-brand-soft text-brand flex items-center justify-center mb-5">
+          <div class="bg-white rounded-2xl p-7 text-center border border-gold/30 shadow-sm hover:shadow-lg transition">
+            <div class="w-16 h-16 mx-auto rounded-2xl bg-gold-soft text-gold-dark flex items-center justify-center mb-5 ring-1 ring-gold/40">
               <i class={`fas ${s.icon} text-2xl`}></i>
             </div>
-            <h3 class="text-lg font-black">{s.title}</h3>
-            <p class="mt-3 text-sm text-gray-600 leading-relaxed">{s.desc}</p>
+            <h3 class="text-lg font-black text-navy">{s.title}</h3>
+            <p class="mt-3 text-sm text-ink/75 leading-relaxed">{s.desc}</p>
           </div>
         ))}
       </div>
@@ -280,10 +284,10 @@ const steps = [
 ]
 
 const Process: FC = () => (
-  <section id="process" class="py-20 bg-white">
+  <section id="process" class="py-20 bg-cream">
     <div class="max-w-6xl mx-auto px-5">
-      <p class="text-center text-brand font-bold mb-3">이용방법</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-snug">
+      <p class="text-center text-brand font-bold mb-3 tracking-wider">이용방법</p>
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75] text-navy">
         간편하게 신청하고
         <br />
         꼼꼼하게 상담받아요
@@ -291,13 +295,13 @@ const Process: FC = () => (
 
       <div class="mt-12 grid md:grid-cols-5 gap-4">
         {steps.map((s, i) => (
-          <div class="relative bg-brand-soft rounded-2xl p-6 border border-brand/10">
+          <div class="relative bg-white rounded-2xl p-6 border border-gold/30 shadow-sm">
             {i < steps.length - 1 && (
-              <i class="fas fa-chevron-right text-brand/40 absolute -right-3 top-1/2 -translate-y-1/2 hidden md:block"></i>
+              <i class="fas fa-chevron-right text-gold absolute -right-3 top-1/2 -translate-y-1/2 hidden md:block"></i>
             )}
             <div class="text-2xl font-black text-brand mb-3">{s.no}</div>
-            <h3 class="font-black">{s.title}</h3>
-            <p class="mt-2 text-sm text-gray-600 leading-relaxed">{s.desc}</p>
+            <h3 class="font-black text-navy">{s.title}</h3>
+            <p class="mt-2 text-sm text-ink/70 leading-relaxed">{s.desc}</p>
           </div>
         ))}
       </div>
@@ -326,10 +330,10 @@ const reviews = [
 ]
 
 const Reviews: FC = () => (
-  <section id="review" class="py-20 bg-brand-soft">
+  <section id="review" class="py-20 bg-cream-soft">
     <div class="max-w-6xl mx-auto px-5">
-      <p class="text-center text-brand font-bold mb-3">고객후기</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-snug">
+      <p class="text-center text-brand font-bold mb-3 tracking-wider">고객후기</p>
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75] text-navy">
         명륜세무회계를 만나고
         <br />
         이렇게 달라졌어요
@@ -337,16 +341,16 @@ const Reviews: FC = () => (
 
       <div class="mt-12 grid md:grid-cols-2 gap-5">
         {reviews.map((r) => (
-          <div class="bg-white rounded-2xl p-7 border border-gray-100 shadow-sm">
-            <div class="flex items-center gap-1 text-brand mb-4">
+          <div class="bg-white rounded-2xl p-7 border border-gold/30 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center gap-1 text-gold mb-4">
               <i class="fas fa-star"></i>
               <i class="fas fa-star"></i>
               <i class="fas fa-star"></i>
               <i class="fas fa-star"></i>
               <i class="fas fa-star"></i>
             </div>
-            <p class="text-gray-700 leading-relaxed">{r.text}</p>
-            <div class="mt-5 font-black text-gray-900">{r.company}</div>
+            <p class="text-ink/85 leading-relaxed">{r.text}</p>
+            <div class="mt-5 font-black text-navy">{r.company}</div>
           </div>
         ))}
       </div>
@@ -356,80 +360,84 @@ const Reviews: FC = () => (
 
 // ===== 가격 / 상담신청 폼 (CTA) =====
 const Consult: FC = () => (
-  <section id="consult" class="py-20 bg-gradient-to-b from-white to-brand-soft">
+  <section id="consult" class="py-20 bg-gradient-to-b from-cream to-cream-soft">
     <div class="max-w-5xl mx-auto px-5">
-      <div class="grid md:grid-cols-2 gap-10 items-center bg-white rounded-3xl shadow-xl border border-brand/10 overflow-hidden">
-        {/* 좌측 안내 */}
-        <div class="p-8 md:p-12 bg-brand text-white">
-          <p class="font-bold/80 mb-3 text-white/80">정육점 특화 세무서비스를</p>
-          <h2 class="text-3xl md:text-4xl font-black leading-tight">
-            월 8만원부터
-          </h2>
-          <p class="mt-6 leading-relaxed text-white/90">
-            지금 상담을 신청하시면 1분 내로
-            <br />
-            전문 상담사가 연락드립니다.
-          </p>
-          <ul class="mt-8 space-y-3 text-white/95">
-            <li class="flex items-center gap-3"><i class="fas fa-check-circle"></i> 무료 사업장 분석</li>
-            <li class="flex items-center gap-3"><i class="fas fa-check-circle"></i> 정부지원금 무료 진단</li>
-            <li class="flex items-center gap-3"><i class="fas fa-check-circle"></i> 정육점 전문 세무사 매칭</li>
-          </ul>
+      <div class="grid md:grid-cols-2 gap-10 items-center bg-white rounded-3xl shadow-2xl border border-gold/30 overflow-hidden">
+        {/* 좌측 안내 (네이비 배경 + 골드 포인트) */}
+        <div class="relative p-8 md:p-12 bg-navy text-white overflow-hidden">
+          <div class="absolute -top-16 -right-16 w-64 h-64 bg-gold/10 rounded-full blur-2xl"></div>
+          <div class="absolute -bottom-20 -left-10 w-56 h-56 bg-brand/30 rounded-full blur-2xl"></div>
+          <div class="relative">
+            <p class="mb-3 text-gold font-bold tracking-wider">정육점 특화 세무서비스를</p>
+            <h2 class="text-3xl md:text-4xl font-black leading-[2.5]">
+              월 <span class="text-gold-gradient">8만원</span>부터
+            </h2>
+            <p class="mt-6 leading-relaxed text-white/90">
+              지금 상담을 신청하시면 1분 내로
+              <br />
+              전문 상담사가 연락드립니다.
+            </p>
+            <ul class="mt-8 space-y-3 text-white/95">
+              <li class="flex items-center gap-3"><i class="fas fa-check-circle text-gold"></i> 무료 사업장 분석</li>
+              <li class="flex items-center gap-3"><i class="fas fa-check-circle text-gold"></i> 정부지원금 무료 진단</li>
+              <li class="flex items-center gap-3"><i class="fas fa-check-circle text-gold"></i> 정육점 전문 세무사 매칭</li>
+            </ul>
+          </div>
         </div>
 
         {/* 우측 폼 */}
-        <div class="p-8 md:p-12">
-          <h3 class="text-xl font-black mb-1">무료 상담신청</h3>
-          <p class="text-sm text-gray-500 mb-6">간단한 정보만 남겨주세요.</p>
+        <div class="p-8 md:p-12 bg-white">
+          <h3 class="text-xl font-black mb-1 text-navy">무료 상담신청</h3>
+          <p class="text-sm text-ink/60 mb-6">간단한 정보만 남겨주세요.</p>
 
           <form id="consult-form" class="space-y-4">
             <div>
-              <label class="block text-sm font-bold mb-1.5" for="f-name">이름 *</label>
+              <label class="block text-sm font-bold mb-1.5 text-navy" for="f-name">이름 *</label>
               <input
                 id="f-name"
                 name="name"
                 type="text"
                 required
                 placeholder="홍길동"
-                class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition"
+                class="w-full rounded-xl border border-navy/15 bg-cream-soft px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition"
               />
             </div>
             <div>
-              <label class="block text-sm font-bold mb-1.5" for="f-phone">연락처 *</label>
+              <label class="block text-sm font-bold mb-1.5 text-navy" for="f-phone">연락처 *</label>
               <input
                 id="f-phone"
                 name="phone"
                 type="tel"
                 required
                 placeholder="010-1234-5678"
-                class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition"
+                class="w-full rounded-xl border border-navy/15 bg-cream-soft px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition"
               />
             </div>
             <div>
-              <label class="block text-sm font-bold mb-1.5" for="f-business">업종 / 상호 (선택)</label>
+              <label class="block text-sm font-bold mb-1.5 text-navy" for="f-business">업종 / 상호 (선택)</label>
               <input
                 id="f-business"
                 name="business"
                 type="text"
                 placeholder="예) 정육점 / 명륜한우정육점"
-                class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition"
+                class="w-full rounded-xl border border-navy/15 bg-cream-soft px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition"
               />
             </div>
             <div>
-              <label class="block text-sm font-bold mb-1.5" for="f-message">문의 내용 (선택)</label>
+              <label class="block text-sm font-bold mb-1.5 text-navy" for="f-message">문의 내용 (선택)</label>
               <textarea
                 id="f-message"
                 name="message"
                 rows={3}
                 placeholder="궁금하신 내용을 적어주세요."
-                class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition resize-none"
+                class="w-full rounded-xl border border-navy/15 bg-cream-soft px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition resize-none"
               ></textarea>
             </div>
 
             <button
               type="submit"
               id="consult-submit"
-              class="w-full bg-brand hover:bg-brand-dark text-white font-bold py-4 rounded-xl transition shadow-lg shadow-brand/30"
+              class="w-full bg-brand hover:bg-brand-dark text-white font-bold py-4 rounded-xl transition shadow-lg shadow-brand/30 ring-1 ring-gold/50"
             >
               <i class="fas fa-paper-plane mr-2"></i> 무료 상담 신청하기
             </button>
@@ -443,15 +451,15 @@ const Consult: FC = () => (
 
 // ===== Footer =====
 const Footer: FC = () => (
-  <footer id="site-footer" class="bg-gray-900 text-gray-400 py-12">
+  <footer id="site-footer" class="bg-navy-dark text-white/70 py-12 border-t-2 border-gold/40">
     <div class="max-w-6xl mx-auto px-5">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
           <div class="flex items-center gap-2 font-black text-xl text-white mb-3">
-            <span class="inline-flex w-8 h-8 rounded-lg bg-brand text-white items-center justify-center">
+            <span class="inline-flex w-8 h-8 rounded-lg bg-brand text-white items-center justify-center ring-1 ring-gold/60">
               <i class="fas fa-calculator text-sm"></i>
             </span>
-            명륜<span class="text-brand">세무회계</span>
+            명륜<span class="text-gold">세무회계</span>
           </div>
           <p class="text-sm leading-relaxed">
             비용은 더 낮게, 절세는 더 크게.
@@ -460,12 +468,12 @@ const Footer: FC = () => (
           </p>
         </div>
         <div class="text-sm space-y-1.5">
-          <p><i class="fas fa-phone text-brand mr-2"></i> 031-8027-2888</p>
-          <p><i class="fas fa-envelope text-brand mr-2"></i> contact@myrytax.com</p>
-          <p><i class="fas fa-clock text-brand mr-2"></i> 평일 09:00 ~ 18:00</p>
+          <p><i class="fas fa-phone text-gold mr-2"></i> 031-8027-2888</p>
+          <p><i class="fas fa-envelope text-gold mr-2"></i> contact@myrytax.com</p>
+          <p><i class="fas fa-clock text-gold mr-2"></i> 평일 09:00 ~ 18:00</p>
         </div>
       </div>
-      <div class="mt-8 pt-6 border-t border-white/10 text-xs text-gray-500">
+      <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/40">
         © 2026 명륜세무회계. All rights reserved. | 본 사이트는 데모 목적으로 제작되었습니다.
       </div>
     </div>
