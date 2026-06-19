@@ -6,16 +6,16 @@ export const renderer = jsxRenderer(({ children }) => {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>명륜세무회계 | 똑똑한 세무의 시작</title>
+        <title>명륜세무회계 | 정육점 전문 세무의 시작</title>
         <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
         <meta
           name="description"
-          content="명륜세무회계 - 비용은 더 낮게, 절세는 더 크게. 120가지 업종별 전문 세무사가 함께하는 스마트 세무 서비스. 월 8만원부터 시작하세요."
+          content="명륜세무회계 - 정육점 · 축산물 전문 세무. 의제매입세액공제, 한우·한돈 매입 관리, 축산물이력제까지 정육 사업장에 특화된 스마트 세무 서비스. 월 8만원부터 시작하세요."
         />
-        <meta property="og:title" content="명륜세무회계 | 똑똑한 세무의 시작" />
+        <meta property="og:title" content="명륜세무회계 | 정육점 전문 세무의 시작" />
         <meta
           property="og:description"
-          content="비용은 더 낮게, 절세는 더 크게. 업종별 전문 세무사가 함께하는 스마트 세무 서비스."
+          content="비용은 더 낮게, 절세는 더 크게. 정육점·축산물 전문 세무사가 함께하는 스마트 세무 서비스."
         />
         <script src="https://cdn.tailwindcss.com"></script>
         <link
@@ -38,10 +38,10 @@ export const renderer = jsxRenderer(({ children }) => {
                   extend: {
                     colors: {
                       brand: {
-                        DEFAULT: '#ff69b4',
-                        light: '#ffd6ec',
-                        soft: '#fff0f8',
-                        dark: '#e0489a'
+                        DEFAULT: '#0c5ab9',
+                        light: '#cfe0f5',
+                        soft: '#eef4fc',
+                        dark: '#084a99'
                       }
                     },
                     fontFamily: {

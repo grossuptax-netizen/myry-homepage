@@ -1,9 +1,9 @@
-/* 명륜세무회계 - 커스텀 스타일 (포인트 컬러 #ff69b4) */
+/* 명륜세무회계 - 커스텀 스타일 (포인트 컬러 #0c5ab9) */
 
 :root {
-  --brand: #ff69b4;
-  --brand-dark: #e0489a;
-  --brand-soft: #fff0f8;
+  --brand: #0c5ab9;
+  --brand-dark: #084a99;
+  --brand-soft: #eef4fc;
 }
 
 html {
