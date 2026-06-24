@@ -214,26 +214,26 @@ const points = [
 ]
 
 const Points: FC = () => (
-  <section id="points" class="relative py-20 bg-navy text-white overflow-hidden">
-    {/* 네이비 배경 위 골드 앬센트 */}
-    <div class="absolute -top-20 -left-20 w-80 h-80 bg-gold/10 rounded-full blur-3xl"></div>
-    <div class="absolute -bottom-24 -right-20 w-96 h-96 bg-brand/20 rounded-full blur-3xl"></div>
+  <section id="points" class="relative py-20 bg-cream-soft overflow-hidden">
+    {/* 크림 배경 위 부드러운 골드/브랜드 액센트 */}
+    <div class="absolute -top-20 -left-20 w-80 h-80 bg-gold-light/40 rounded-full blur-3xl"></div>
+    <div class="absolute -bottom-24 -right-20 w-96 h-96 bg-brand-light/40 rounded-full blur-3xl"></div>
 
     <div class="relative max-w-6xl mx-auto px-5">
-      <p class="text-center text-gold font-bold mb-3 tracking-wider">차별화 포인트</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-[1.375]">
+      <p class="text-center text-brand font-bold mb-3 tracking-wider">차별화 포인트</p>
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[1.375] text-navy">
         명륜세무회계는
         <br />
-        무엇이 <span class="text-gold-gradient">다를까요?</span>
+        무엇이 <span class="text-brand">다를까요?</span>
       </h2>
 
       <div class="mt-12 grid sm:grid-cols-2 gap-3">
         {points.map((p, i) => (
-          <div class="flex items-center gap-4 bg-white/5 hover:bg-white/10 rounded-xl px-5 py-4 transition border border-gold/15">
+          <div class="flex items-center gap-4 bg-white hover:shadow-md rounded-xl px-5 py-4 transition border border-gold/30 shadow-sm">
             <span class="shrink-0 w-10 h-10 rounded-lg bg-brand flex items-center justify-center font-black text-white ring-1 ring-gold/60">
               {String(i + 1).padStart(2, '0')}
             </span>
-            <span class="font-medium text-white/90">{p}</span>
+            <span class="font-medium text-navy/90">{p}</span>
           </div>
         ))}
       </div>
@@ -312,7 +312,7 @@ const Process: FC = () => (
 // ===== 고객후기 =====
 const reviews = [
   {
-    company: '명륜한우정육점',
+    company: '영웅한우',
     text: '의제매입세액공제를 꼼꼼히 챙겨주셔서 부가세 부담이 확 줄었습니다. 정육점 세무를 정말 잘 아시는 분이라 믿고 맡기고 있어요.',
   },
   {
@@ -475,12 +475,12 @@ const Footer: FC = () => (
         </div>
         <div class="text-sm space-y-1.5">
           <p><i class="fas fa-phone text-gold mr-2"></i> 031-8027-2888</p>
-          <p><i class="fas fa-envelope text-gold mr-2"></i> contact@myrytax.com</p>
+          <p><i class="fas fa-envelope text-gold mr-2"></i> tg@myrytax.com</p>
           <p><i class="fas fa-clock text-gold mr-2"></i> 평일 09:00 ~ 18:00</p>
         </div>
       </div>
       <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/40">
-        © 2026 명륜세무회계. All rights reserved. | 본 사이트는 데모 목적으로 제작되었습니다.
+        © 2026 명륜세무회계. All rights reserved.
       </div>
     </div>
   </footer>
