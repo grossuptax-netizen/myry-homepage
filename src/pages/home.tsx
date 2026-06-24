@@ -7,13 +7,13 @@ const Header: FC = () => (
     class="fixed top-0 inset-x-0 z-50 bg-cream/95 backdrop-blur border-b border-gold/30"
   >
     <nav class="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
-      <a href="#hero" class="flex items-center gap-2 font-black text-xl tracking-tight">
-        <span class="inline-flex w-9 h-9 rounded-xl bg-brand text-white items-center justify-center ring-2 ring-gold/60 shadow-sm shadow-brand/20">
-          <i class="fas fa-calculator text-sm"></i>
-        </span>
-        <span class="text-navy">
-          명륜<span class="text-brand">세무회계</span>
-        </span>
+      <a href="#hero" class="flex items-center gap-2.5 font-black text-xl tracking-tight leading-none">
+        <img
+          src="/static/logo-symbol.png"
+          alt="명륜세무회계 로고"
+          class="h-6 w-auto object-contain block"
+        />
+        <span class="text-navy leading-none">명륜<span class="text-brand">세무회계</span></span>
       </a>
 
       <ul class="hidden md:flex items-center gap-7 text-sm font-medium text-navy/80">
@@ -47,7 +47,7 @@ const Hero: FC = () => (
       <span class="inline-flex items-center gap-2 bg-white border border-gold text-brand text-sm font-bold px-4 py-1.5 rounded-full mb-6 shadow-sm">
         <i class="fas fa-award text-gold"></i> 정육점 · 축산물 세무 전문
       </span>
-      <h1 class="text-4xl md:text-6xl font-black leading-[2.5] tracking-tight text-navy">
+      <h1 class="text-4xl md:text-6xl font-black leading-[1.25] tracking-tight text-navy">
         비용은 <span class="text-brand">더 낮게</span>
         <br />
         절세는 <span class="text-brand">더 크게</span>
@@ -88,7 +88,7 @@ const stats = [
 const Stats: FC = () => (
   <section id="stats" class="py-16 bg-cream">
     <div class="max-w-6xl mx-auto px-5">
-      <h2 class="text-center text-2xl md:text-3xl font-black leading-[2.75] text-navy">
+      <h2 class="text-center text-2xl md:text-3xl font-black leading-[1.375] text-navy">
         수많은 정육점 사장님들이 <span class="text-brand">명륜세무회계</span>를
         <br class="md:hidden" /> 선택해주시는 이유는 분명합니다
       </h2>
@@ -121,7 +121,7 @@ const Strength: FC = () => (
   <section id="strength" class="py-20 bg-cream-soft">
     <div class="max-w-6xl mx-auto px-5">
       <p class="text-center text-brand font-bold mb-3 tracking-wider">업종별 전문성</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75] text-navy">
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[1.375] text-navy">
         정육점에
         <br />
         100% 특화된 세무사 집단
@@ -171,7 +171,7 @@ const Consulting: FC = () => (
   <section id="consulting" class="py-20 bg-cream">
     <div class="max-w-6xl mx-auto px-5">
       <p class="text-center text-brand font-bold mb-3 tracking-wider">무료 컨설팅</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75] text-navy">
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[1.375] text-navy">
         세무 서비스와 컨설팅을
         <br />
         모두 경험해보세요
@@ -187,7 +187,7 @@ const Consulting: FC = () => (
             <div class="w-14 h-14 rounded-2xl bg-brand text-white flex items-center justify-center mb-5 ring-2 ring-gold/50 shadow-md shadow-brand/20">
               <i class={`fas ${c.icon} text-xl`}></i>
             </div>
-            <h3 class="text-lg font-black leading-[2.75] text-navy">{c.title}</h3>
+            <h3 class="text-lg font-black leading-[1.375] text-navy">{c.title}</h3>
             <p class="mt-3 text-sm text-ink/75 leading-relaxed">{c.desc}</p>
             <div class="mt-5 inline-flex items-center gap-2 text-sm font-bold text-gold-dark bg-gold-soft px-3 py-1.5 rounded-full border border-gold/40">
               <i class="fas fa-check-circle"></i> {c.highlight}
@@ -221,7 +221,7 @@ const Points: FC = () => (
 
     <div class="relative max-w-6xl mx-auto px-5">
       <p class="text-center text-gold font-bold mb-3 tracking-wider">차별화 포인트</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75]">
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[1.375]">
         명륜세무회계는
         <br />
         무엇이 <span class="text-gold-gradient">다를까요?</span>
@@ -252,7 +252,7 @@ const EmployeeService: FC = () => (
   <section id="employee" class="py-20 bg-cream-soft">
     <div class="max-w-6xl mx-auto px-5">
       <p class="text-center text-brand font-bold mb-3 tracking-wider">직원관리 서비스</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75] text-navy">
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[1.375] text-navy">
         전문가가 진행하는 직원관리
       </h2>
       <p class="mt-5 text-center text-ink/75">
@@ -287,7 +287,7 @@ const Process: FC = () => (
   <section id="process" class="py-20 bg-cream">
     <div class="max-w-6xl mx-auto px-5">
       <p class="text-center text-brand font-bold mb-3 tracking-wider">이용방법</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75] text-navy">
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[1.375] text-navy">
         간편하게 신청하고
         <br />
         꼼꼼하게 상담받아요
@@ -333,7 +333,7 @@ const Reviews: FC = () => (
   <section id="review" class="py-20 bg-cream-soft">
     <div class="max-w-6xl mx-auto px-5">
       <p class="text-center text-brand font-bold mb-3 tracking-wider">고객후기</p>
-      <h2 class="text-center text-2xl md:text-4xl font-black leading-[2.75] text-navy">
+      <h2 class="text-center text-2xl md:text-4xl font-black leading-[1.375] text-navy">
         명륜세무회계를 만나고
         <br />
         이렇게 달라졌어요
@@ -369,7 +369,7 @@ const Consult: FC = () => (
           <div class="absolute -bottom-20 -left-10 w-56 h-56 bg-brand/30 rounded-full blur-2xl"></div>
           <div class="relative">
             <p class="mb-3 text-gold font-bold tracking-wider">정육점 특화 세무서비스를</p>
-            <h2 class="text-3xl md:text-4xl font-black leading-[2.5]">
+            <h2 class="text-3xl md:text-4xl font-black leading-[1.25]">
               월 <span class="text-gold-gradient">8만원</span>부터
             </h2>
             <p class="mt-6 leading-relaxed text-white/90">
@@ -437,10 +437,14 @@ const Consult: FC = () => (
             <button
               type="submit"
               id="consult-submit"
-              class="w-full bg-brand hover:bg-brand-dark text-white font-bold py-4 rounded-xl transition shadow-lg shadow-brand/30 ring-1 ring-gold/50"
+              class="flex items-center justify-center w-full bg-brand hover:bg-brand-dark text-white font-bold py-4 rounded-xl transition shadow-lg shadow-brand/30 ring-1 ring-gold/50"
             >
               <i class="fas fa-paper-plane mr-2"></i> 무료 상담 신청하기
             </button>
+            <p class="text-xs text-center text-ink/50 mt-2">
+              <i class="fas fa-lock mr-1"></i>
+              입력하신 정보는 상담 목적으로만 사용되며, 신청 즉시 담당자에게 안전하게 전달됩니다.
+            </p>
             <p id="consult-result" class="text-sm text-center hidden"></p>
           </form>
         </div>
@@ -455,11 +459,13 @@ const Footer: FC = () => (
     <div class="max-w-6xl mx-auto px-5">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
-          <div class="flex items-center gap-2 font-black text-xl text-white mb-3">
-            <span class="inline-flex w-8 h-8 rounded-lg bg-brand text-white items-center justify-center ring-1 ring-gold/60">
-              <i class="fas fa-calculator text-sm"></i>
-            </span>
-            명륜<span class="text-gold">세무회계</span>
+          <div class="flex items-center gap-2.5 font-black text-xl tracking-tight text-white mb-3 leading-none">
+            <img
+              src="/static/logo-symbol.png"
+              alt="명륜세무회계 로고"
+              class="h-6 w-auto object-contain block"
+            />
+            <span class="text-white leading-none">명륜<span class="text-gold">세무회계</span></span>
           </div>
           <p class="text-sm leading-relaxed">
             비용은 더 낮게, 절세는 더 크게.

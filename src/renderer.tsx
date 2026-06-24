@@ -7,7 +7,9 @@ export const renderer = jsxRenderer(({ children }) => {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>명륜세무회계 | 정육점 전문 세무의 시작</title>
-        <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png" />
+        <link rel="apple-touch-icon" href="/static/favicon-192.png" />
+        <meta property="og:image" content="/static/favicon-192.png" />
         <meta
           name="description"
           content="명륜세무회계 - 정육점 · 축산물 전문 세무. 의제매입세액공제, 한우·한돈 매입 관리, 축산물이력제까지 정육 사업장에 특화된 스마트 세무 서비스. 월 8만원부터 시작하세요."

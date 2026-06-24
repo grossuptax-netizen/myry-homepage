@@ -43,6 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const result = document.getElementById('consult-result')
   const submitBtn = document.getElementById('consult-submit')
 
+  /* ===== Formspree 이메일 전송 (tg@myrytax.com) ===== */
+  const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mreweznq'
+
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault()
@@ -67,23 +70,40 @@ document.addEventListener('DOMContentLoaded', () => {
         '<i class="fas fa-spinner fa-spin mr-2"></i> 접수 중...'
 
       try {
-        const res = await fetch('/api/consult', {
+        const res = await fetch(FORMSPREE_ENDPOINT, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            _subject: '[명륜세무회계] 새 상담 신청 - ' + data.name,
+            이름: data.name,
+            연락처: data.phone,
+            '업종/상호': data.business || '(미입력)',
+            문의내용: data.message || '(미입력)',
+          }),
         })
-        const json = await res.json()
 
-        if (json.ok) {
-          result.textContent = json.message
+        if (res.ok) {
+          result.innerHTML =
+            '<i class="fas fa-circle-check mr-1"></i> 상담 신청이 정상적으로 접수되었습니다. 빠른 시일 내에 연락드리겠습니다.'
           result.className = 'text-sm text-center success'
           form.reset()
         } else {
-          result.textContent = json.error || '접수에 실패했습니다. 다시 시도해주세요.'
+          let msg = '접수에 실패했습니다. 잠시 후 다시 시도하시거나 031-8027-2888로 연락해 주세요.'
+          try {
+            const json = await res.json()
+            if (json && json.errors && json.errors.length) {
+              msg = json.errors.map((er) => er.message).join(' ')
+            }
+          } catch (_) {}
+          result.textContent = msg
           result.className = 'text-sm text-center error'
         }
       } catch (err) {
-        result.textContent = '네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        result.textContent =
+          '네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
         result.className = 'text-sm text-center error'
       } finally {
         submitBtn.disabled = false

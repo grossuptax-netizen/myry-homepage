@@ -17,7 +17,8 @@
 8. **고객후기** – 정육점·축산 고객 4개 후기 (한우정육점, 으뜸축산, 한돈마트, 정육식당)
 9. **상담신청 (CTA)** – "월 8만원부터" + 상담신청 폼 (이름·연락처·업종·문의)
 10. **Footer** – 연락처 031-8027-2888 / 메일 contact@myrytax.com
-11. **부가 기능** – 스크롤 진입 애니메이션, 연락처 자동 하이픈, 폼 AJAX 제출, 헤더 스크롤 그림자, SVG favicon
+11. **부가 기능** – 스크롤 진입 애니메이션, 연락처 자동 하이픈, 폼 AJAX 제출, 헤더 스크롤 그림자
+12. **브랜드 로고 적용** – 제공받은 명륜세무회계 심볼 마크(.ai → 투명 PNG 변환)를 헤더·푸터 로고 및 favicon에 적용 (심볼 아이콘 + "명륜세무회계" 텍스트 조합)
 
 ## 기능 진입 URI (Functional Entry URIs)
 | Method | Path | 설명 | 파라미터 |
@@ -39,9 +40,9 @@
 
 ## 데이터 아키텍처 (Data Architecture)
 - **데이터 모델**: 상담 신청(name, phone, business, message)
-- **스토리지 서비스**: 현재 미사용 (상담 신청은 접수 확인 응답만 반환).
-  실제 운영 시 Cloudflare D1(신청 내역 저장) 또는 외부 알림(이메일/슬랙) 연동 권장.
-- **데이터 흐름**: 프론트 폼 → `fetch POST /api/consult` → Hono 핸들러 → JSON 응답
+- **스토리지 서비스**: 별도 DB 미사용. 상담 신청은 **Formspree**를 통해 담당자 이메일(`tg@myrytax.com`)로 즉시 전송.
+- **데이터 흐름**: 프론트 폼 → `fetch POST https://formspree.io/f/mreweznq` → Formspree → `tg@myrytax.com` 메일 수신
+- **상담 연결**: 상담 폼은 Formspree 이메일 전송 방식 사용 (입력 정보가 담당자 메일로 자동 전달)
 
 ## 아직 구현되지 않은 기능 (Features Not Yet Implemented)
 - 상담 신청 내역의 영구 저장 (Cloudflare D1) 및 관리자 조회 화면
