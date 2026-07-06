@@ -16,15 +16,16 @@
 7. **이용방법** – 5단계 프로세스
 8. **고객후기** – 정육점·축산 고객 4개 후기 (한우정육점, 으뜸축산, 한돈마트, 정육식당)
 9. **상담신청 (CTA)** – "월 8만원부터" + 상담신청 폼 (이름·연락처·업종·문의)
-10. **Footer** – 연락처 031-8027-2888 / 메일 contact@myrytax.com
+10. **Footer** – 연락처 031-8027-2888 / 메일 (이메일 난독화 적용 - 평문 노출 없음)
 11. **부가 기능** – 스크롤 진입 애니메이션, 연락처 자동 하이픈, 폼 AJAX 제출, 헤더 스크롤 그림자
 12. **브랜드 로고 적용** – 제공받은 명륜세무회계 심볼 마크(.ai → 투명 PNG 변환)를 헤더·푸터 로고 및 favicon에 적용 (심볼 아이콘 + "명륜세무회계" 텍스트 조합)
+13. **봇 스팸 차단 (보안)** – 이메일 주소 난독화(charCode 인코딩), honeypot 필드, 시간 기반 봇 차단 적용
 
 ## 기능 진입 URI (Functional Entry URIs)
 | Method | Path | 설명 | 파라미터 |
 |--------|------|------|----------|
 | GET | `/` | 메인 랜딩 페이지 | - |
-| POST | `/api/consult` | 상담 신청 접수 | JSON Body: `name`(필수), `phone`(필수), `business`(선택), `message`(선택) |
+| POST | `/api/consult` | 상담 신청 접수 (봇 차단 포함) | JSON Body: `name`(필수), `phone`(필수), `business`(선택), `message`(선택), `_gotcha`(honeypot), `_form_loaded_at`(봇 차단) |
 | GET | `/static/style.css` | 커스텀 스타일 | - |
 | GET | `/static/app.js` | 프론트엔드 스크립트 | - |
 | GET | `/static/favicon.svg` | 파비콘 | - |
@@ -40,9 +41,27 @@
 
 ## 데이터 아키텍처 (Data Architecture)
 - **데이터 모델**: 상담 신청(name, phone, business, message)
-- **스토리지 서비스**: 별도 DB 미사용. 상담 신청은 **Formspree**를 통해 담당자 이메일(`tg@myrytax.com`)로 즉시 전송.
-- **데이터 흐름**: 프론트 폼 → `fetch POST https://formspree.io/f/mreweznq` → Formspree → `tg@myrytax.com` 메일 수신
+- **스토리지 서비스**: 별도 DB 미사용. 상담 신청은 **Formspree**를 통해 담당자 이메일로 즉시 전송.
+- **데이터 흐름**: 프론트 폼 → `fetch POST https://formspree.io/f/mreweznq` → Formspree → 담당자 메일 수신
 - **상담 연결**: 상담 폼은 Formspree 이메일 전송 방식 사용 (입력 정보가 담당자 메일로 자동 전달)
+
+## 보안 조치 (Bot & Spam Protection)
+광고/스팸 봇으로부터 이메일 주소와 상담 폼을 보호하기 위해 다음 조치를 적용했습니다:
+
+1. **이메일 주소 난독화 (Email Obfuscation)**
+   - Footer 이메일을 HTML 평문에서 charCode 배열 인코딩으로 변경
+   - HTML 소스 코드에 이메일 주소가 평문으로 노출되지 않아 크롤링 봇 수집 차단
+   - JavaScript 런타임에만 복원되어 실제 방문자는 클릭 시 정상적으로 mailto 작동
+
+2. **Honeypot 필드 (함정 입력란)**
+   - 사용자에게 보이지 않는 숨겨진 입력 필드(`_gotcha`) 추가
+   - 봇은 모든 필드를 무차별적으로 채우는 경향이 있어 함정 필드가 채워지면 봇으로 간주하여 차단
+   - Formspree 공식 honeypot 기능 지원
+
+3. **시간 기반 봇 차단 (Time-based Bot Detection)**
+   - 폼 로드 시간을 기록하여 3초 미만 제출 시 봇으로 간주
+   - 사람이 폼을 읽고 입력하는 데 최소 수 초가 소요되는 점을 활용
+   - 프론트엔드(app.js)와 백엔드(/api/consult) 양쪽에 동일한 검증 로직 적용
 
 ## 아직 구현되지 않은 기능 (Features Not Yet Implemented)
 - 상담 신청 내역의 영구 저장 (Cloudflare D1) 및 관리자 조회 화면
@@ -63,8 +82,9 @@
 3. 접수 완료 메시지가 표시됩니다.
 
 ## 배포 (Deployment)
-- **플랫폼**: Cloudflare Pages (예정)
-- **상태**: 🟢 로컬 샌드박스 실행 중 (미배포)
+- **플랫폼**: Cloudflare Workers (Genspark 관리)
+- **상태**: ✅ 배포 완료
+- **배포 URL**: https://65f4dc72-793f-4d6c-b322-66c5fa40619c.vip.gensparksite.com
 - **기술 스택**: Hono + TypeScript(JSX) + Vite + TailwindCSS(CDN) + Font Awesome
 - **로컬 실행**:
   ```bash
@@ -74,5 +94,5 @@
   # http://localhost:3000
   ```
 - **GitHub**: https://github.com/grossuptax-netizen/myry-homepage
-- **연락처**: 031-8027-2888 / contact@myrytax.com
-- **최종 업데이트**: 2026-06-19
+- **연락처**: 031-8027-2888 / 이메일 (난독화 적용, 페이지 하단에서 확인)
+- **최종 업데이트**: 2026-07-06
