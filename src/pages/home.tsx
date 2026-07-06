@@ -390,7 +390,22 @@ const Consult: FC = () => (
           <h3 class="text-xl font-black mb-1 text-navy">무료 상담신청</h3>
           <p class="text-sm text-ink/60 mb-6">간단한 정보만 남겨주세요.</p>
 
-          <form id="consult-form" class="space-y-4">
+          <form id="consult-form" class="space-y-4" data-loaded-at="">
+            {/* 봇 차단용 honeypot (사용자에게 보이지 않음, Formspree _gotcha) */}
+            <div
+              style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;"
+              aria-hidden="true"
+            >
+              <label for="website-url">웹사이트 URL (채우지 마세요)</label>
+              <input
+                type="text"
+                id="website-url"
+                name="_gotcha"
+                tabindex="-1"
+                autocomplete="off"
+              />
+            </div>
+            <input type="hidden" name="_form_loaded_at" id="form-loaded-at" value="" />
             <div>
               <label class="block text-sm font-bold mb-1.5 text-navy" for="f-name">이름 *</label>
               <input
@@ -475,7 +490,18 @@ const Footer: FC = () => (
         </div>
         <div class="text-sm space-y-1.5">
           <p><i class="fas fa-phone text-gold mr-2"></i> 031-8027-2888</p>
-          <p><i class="fas fa-envelope text-gold mr-2"></i> tg@myrytax.com</p>
+          <p>
+            <i class="fas fa-envelope text-gold mr-2"></i>
+            <a
+              id="footer-email"
+              href="#"
+              data-e="116,103,64,109,121,114,121,116,97,120,46,99,111,109"
+              rel="nofollow"
+              aria-label="이메일 주소 보기"
+            >
+              이메일 주소 보기
+            </a>
+          </p>
           <p><i class="fas fa-clock text-gold mr-2"></i> 평일 09:00 ~ 18:00</p>
         </div>
       </div>

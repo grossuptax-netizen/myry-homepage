@@ -19,7 +19,23 @@ app.post('/api/consult', async (c) => {
       phone?: string
       business?: string
       message?: string
+      _gotcha?: string
+      website?: string
+      _form_loaded_at?: string
     }>()
+
+    // 봇 차단: honeypot 필드가 채워져 있으면 봇으로 간주 (정상 응답처럼 처리하고 버림)
+    if ((body._gotcha && body._gotcha.trim() !== '') || (body.website && body.website.trim() !== '')) {
+      return c.json({ ok: true, message: '상담 신청이 정상적으로 접수되었습니다.' })
+    }
+
+    // 봇 차단: 폼 로드 후 3초 미만 제출은 봇으로 간주
+    if (body._form_loaded_at) {
+      const elapsed = Date.now() - parseInt(body._form_loaded_at, 10)
+      if (!isNaN(elapsed) && elapsed < 3000) {
+        return c.json({ ok: true, message: '상담 신청이 정상적으로 접수되었습니다.' })
+      }
+    }
 
     if (!body.name || !body.phone) {
       return c.json({ ok: false, error: '이름과 연락처는 필수입니다.' }, 400)
