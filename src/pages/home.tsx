@@ -17,11 +17,10 @@ const Header: FC = () => (
       </a>
 
       <ul class="hidden md:flex items-center gap-7 text-sm font-medium text-navy/80">
-        <li><a href="#strength" class="hover:text-brand transition">업종 전문성</a></li>
-        <li><a href="#consulting" class="hover:text-brand transition">절세 컨설팅</a></li>
-        <li><a href="#points" class="hover:text-brand transition">차별화 포인트</a></li>
-        <li><a href="#process" class="hover:text-brand transition">이용방법</a></li>
-        <li><a href="#review" class="hover:text-brand transition">고객후기</a></li>
+        <li><a href="#strength" class="hover:text-brand transition">업종전문성</a></li>
+        <li><a href="#points" class="hover:text-brand transition">차별화포인트</a></li>
+        <li><a href="/column" class="hover:text-brand transition">인사이트</a></li>
+        <li><a href="/tax-calculator" class="hover:text-brand transition">세금계산기</a></li>
       </ul>
 
       <a

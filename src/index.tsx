@@ -5,6 +5,7 @@ import { Home } from './pages/home'
 import { ColumnListPage } from './pages/column-list'
 import { ColumnDetailPage, buildColumnHead } from './pages/column-detail'
 import { AdminLoginPage, AdminColumnListPage, AdminColumnFormPage } from './pages/admin'
+import { TaxCalculatorPage } from './pages/tax-calculator'
 import { CATEGORIES, getCategory } from './lib/columns'
 import type { Column } from './lib/columns'
 import {
@@ -22,12 +23,27 @@ import {
   seedDatabase,
   type ColumnInput,
 } from './lib/db'
+import {
+  createSessionToken,
+  verifySessionToken,
+  getGoogleAuthUrl,
+  exchangeCodeForToken,
+  isAllowedEmail,
+  isOAuthConfigured,
+  getRedirectBase,
+  type AppEnv,
+} from './lib/auth'
 
-// ===== 앱 타입 정의 (D1 바인딩) =====
+// ===== 앱 타입 정의 (D1 + Google OAuth 바인딩) =====
 type AppBindings = {
   DB: D1Database
-  // 관리자 비밀번호 (운영 시 wrangler secret put ADMIN_PASSWORD 로 설정)
-  ADMIN_PASSWORD?: string
+  // Google OAuth (운영 시 wrangler secret put 으로 설정)
+  GOOGLE_CLIENT_ID?: string
+  GOOGLE_CLIENT_SECRET?: string
+  // 접근 허용된 Google 이메일 (콤마/공백 구분)
+  ALLOWED_GOOGLE_EMAILS?: string
+  // OAuth 리다이렉트 기본 URL (미설정 시 요청 호스트에서 추출)
+  OAUTH_REDIRECT_BASE?: string
 }
 
 const app = new Hono<{ Bindings: AppBindings }>()
@@ -42,28 +58,40 @@ function getBaseUrl(c: any): string {
 }
 
 // ===== 헬퍼: 관리자 인증 검사 (API용) =====
-// Authorization 헤더에서 세션 토큰 검증
-// 토큰은 로그인 시 서버에서 발급 (비밀번호 기반 서명)
+// Authorization 헤더 또는 쿠키에서 Google OAuth 세션 토큰 검증
+// 토큰은 Google 로그인 후 서버에서 발급 (HMAC 서명 포함)
 async function checkAdminAuth(c: any): Promise<boolean> {
+  // 1. Authorization Bearer 헤더 확인
   const auth = c.req.header('Authorization')
-  if (!auth || !auth.startsWith('Bearer ')) return false
-  const token = auth.slice(7)
-  // 토큰 형식: <password>:<timestamp> 의 단순 해시
-  // 운영에서는 JWT 권장하지만, 로컬 개발용으로 단순 토큰 사용
-  const expectedPassword = c.env.ADMIN_PASSWORD || 'myungryun2026'
-  // 토큰은 base64(password) — 단순하지만 HTTPS 환경에서는 충분
-  try {
-    const decoded = atob(token)
-    if (decoded === expectedPassword) return true
-    // 4시간 이내 토큰인지 확인: password:timestamp 형식도 지원
-    if (decoded.startsWith(expectedPassword + ':')) {
-      const ts = parseInt(decoded.split(':')[1], 10)
-      if (Date.now() - ts < 4 * 60 * 60 * 1000) return true
-    }
-  } catch {
-    return false
+  if (auth && auth.startsWith('Bearer ')) {
+    const token = auth.slice(7)
+    const result = verifySessionToken(token, c.env as AppEnv)
+    if (result.valid) return true
+  }
+  // 2. 쿠키에서 admin_session 토큰 확인 (fetch 시 자동 전송)
+  const cookieHeader = c.req.header('cookie') || ''
+  const match = cookieHeader.match(/admin_session=([^;]+)/)
+  if (match) {
+    const token = decodeURIComponent(match[1])
+    const result = verifySessionToken(token, c.env as AppEnv)
+    if (result.valid) return true
   }
   return false
+}
+
+// ===== 헬퍼: 페이지 라우트용 쿠키 기반 인증 검사 =====
+// 관리자 페이지 렌더링 시 쿠키에서 토큰을 읽어 인증 확인
+function checkAdminAuthCookie(c: any): { authed: boolean; email?: string } {
+  // 쿠키에서 admin_session 토큰 추출
+  const cookieHeader = c.req.header('cookie') || ''
+  const match = cookieHeader.match(/admin_session=([^;]+)/)
+  if (!match) return { authed: false }
+  const token = decodeURIComponent(match[1])
+  const result = verifySessionToken(token, c.env as AppEnv)
+  if (result.valid) {
+    return { authed: true, email: result.email }
+  }
+  return { authed: false }
 }
 
 // ===== 메인 랜딩 페이지 =====
@@ -183,31 +211,56 @@ app.get('/column/:categorySlug/:columnSlug', async (c) => {
   return c.render(<ColumnDetailPage column={column} related={related} baseUrl={baseUrl} />)
 })
 
+// ===== 세금계산기 페이지 (플레이스홀더 - 기능은 추후 구현) =====
+app.get('/tax-calculator', (c) => {
+  c.set('head', {
+    title: '세금계산기 (준비 중) | 명륜세무회계',
+    description:
+      '정육점·축산물 세무 전용 세금계산기. 현재 준비 중이며, 오픈 시 의제매입세액공제·부가세·종합소득세 시뮬레이션을 제공합니다.',
+    robots: 'noindex',
+  } as HeadData)
+  return c.render(<TaxCalculatorPage />)
+})
+
 // ===== 관리자 페이지 라우트 =====
 
-// 관리자 로그인 페이지
+// 관리자 로그인 페이지 — Google OAuth 설정 여부를 페이지에 전달
 app.get('/admin/column/login', (c) => {
+  // 이미 인증된 경우 관리자 목록으로 리다이렉트
+  const { authed } = checkAdminAuthCookie(c)
+  if (authed) {
+    return c.redirect('/admin/column')
+  }
+  const oauthReady = isOAuthConfigured(c.env as AppEnv)
   c.set('head', {
     title: '관리자 로그인 | 명륜세무회계 칼럼 관리',
     description: '칼럼 관리자 로그인 페이지',
     robots: 'noindex, nofollow',
   } as HeadData)
-  return c.render(<AdminLoginPage />)
+  return c.render(<AdminLoginPage oauthReady={oauthReady} />)
 })
 
-// 관리자 칼럼 목록
+// 관리자 칼럼 목록 — 쿠키 인증 필요
 app.get('/admin/column', async (c) => {
+  const { authed, email } = checkAdminAuthCookie(c)
+  if (!authed) {
+    return c.redirect('/admin/column/login')
+  }
   const columns = await getAllColumnsForAdmin(c.env.DB)
   c.set('head', {
     title: '칼럼 관리 | 명륜세무회계',
     description: '칼럼 관리자 페이지',
     robots: 'noindex, nofollow',
   } as HeadData)
-  return c.render(<AdminColumnListPage columns={columns} />)
+  return c.render(<AdminColumnListPage columns={columns} userEmail={email} />)
 })
 
-// 관리자 칼럼 작성 폼
+// 관리자 칼럼 작성 폼 — 쿠키 인증 필요
 app.get('/admin/column/new', (c) => {
+  const { authed } = checkAdminAuthCookie(c)
+  if (!authed) {
+    return c.redirect('/admin/column/login')
+  }
   c.set('head', {
     title: '새 칼럼 작성 | 명륜세무회계 칼럼 관리',
     description: '새 칼럼 작성 페이지',
@@ -216,8 +269,12 @@ app.get('/admin/column/new', (c) => {
   return c.render(<AdminColumnFormPage mode="new" />)
 })
 
-// 관리자 칼럼 수정 폼
+// 관리자 칼럼 수정 폼 — 쿠키 인증 필요
 app.get('/admin/column/edit/:id', async (c) => {
+  const { authed } = checkAdminAuthCookie(c)
+  if (!authed) {
+    return c.redirect('/admin/column/login')
+  }
   const id = parseInt(c.req.param('id'), 10)
   const column = await getColumnByIdDb(c.env.DB, id)
   c.set('head', {
@@ -228,26 +285,73 @@ app.get('/admin/column/edit/:id', async (c) => {
   return c.render(<AdminColumnFormPage mode="edit" column={column} />)
 })
 
-// ===== 관리자 API 라우트 (서버 사이드 인증 + CRUD) =====
+// ===== Google OAuth 인증 라우트 =====
 
-// 관리자 로그인 API - 서버에서 비밀번호 검증 후 토큰 발급
-app.post('/api/admin/login', async (c) => {
-  try {
-    const body = await c.req.json<{ password?: string }>()
-    const password = body.password ?? ''
-    const expectedPassword = c.env.ADMIN_PASSWORD || 'myungryun2026'
-
-    if (password === expectedPassword) {
-      // 토큰 발급: base64(password:timestamp) — 4시간 유효
-      const ts = Date.now()
-      const token = btoa(`${password}:${ts}`)
-      return c.json({ ok: true, token })
-    }
-    return c.json({ ok: false, error: '비밀번호가 올바르지 않습니다.' }, 401)
-  } catch (e) {
-    return c.json({ ok: false, error: '요청 형식이 올바르지 않습니다.' }, 400)
+// Google 로그인 시작 — Google 인증 페이지로 리다이렉트
+app.get('/api/auth/google', (c) => {
+  const redirectBase = getRedirectBase(c.env as AppEnv, c.req.header)
+  if (!isOAuthConfigured(c.env as AppEnv)) {
+    return c.html('<p>Google OAuth가 설정되지 않았습니다. 관리자에게 문의하세요.</p>', 500)
   }
+  const authUrl = getGoogleAuthUrl(c.env as AppEnv, redirectBase)
+  return c.redirect(authUrl)
 })
+
+// Google OAuth 콜백 — 인증 코드를 토큰으로 교환 후 세션 쿠키 설정
+app.get('/api/auth/google/callback', async (c) => {
+  const code = c.req.query('code')
+  const error = c.req.query('error')
+
+  if (error) {
+    return c.redirect('/admin/column/login?error=google_denied')
+  }
+  if (!code) {
+    return c.redirect('/admin/column/login?error=no_code')
+  }
+
+  const redirectBase = getRedirectBase(c.env as AppEnv, c.req.header)
+  const result = await exchangeCodeForToken(code, c.env as AppEnv, redirectBase)
+
+  if (!result.ok || !result.email) {
+    const msg = encodeURIComponent(result.error || '인증 실패')
+    return c.redirect(`/admin/column/login?error=${msg}`)
+  }
+
+  // 허용된 이메일인지 확인
+  if (!isAllowedEmail(result.email, c.env as AppEnv)) {
+    const msg = encodeURIComponent('허용되지 않은 Google 계정입니다.')
+    return c.redirect(`/admin/column/login?error=${msg}`)
+  }
+
+  // 세션 토큰 발급
+  const token = createSessionToken(result.email, c.env as AppEnv)
+
+  // 쿠키 설정 (HttpOnly, Secure, 4시간) + 관리자 페이지로 리다이렉트
+  c.header(
+    'Set-Cookie',
+    `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=14400; SameSite=Lax${redirectBase.startsWith('https://') ? '; Secure' : ''}`
+  )
+  return c.redirect('/admin/column')
+})
+
+// 로그아웃 — 세션 쿠키 삭제
+app.post('/api/auth/logout', (c) => {
+  c.header(
+    'Set-Cookie',
+    'admin_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax'
+  )
+  return c.json({ ok: true })
+})
+
+app.get('/api/auth/logout', (c) => {
+  c.header(
+    'Set-Cookie',
+    'admin_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax'
+  )
+  return c.redirect('/admin/column/login')
+})
+
+// ===== 관리자 API 라우트 (Google OAuth 세션 인증 + CRUD) =====
 
 // 관리자 칼럼 목록 조회 API
 app.get('/api/admin/columns', async (c) => {

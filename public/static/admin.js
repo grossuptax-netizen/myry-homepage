@@ -1,132 +1,53 @@
 // 관리자 페이지 스크립트
-// 서버 사이드 인증 + D1 CRUD API 연동
-// - 로그인: POST /api/admin/login → 토큰 발급
+// Google OAuth 세션 (쿠키 기반) + D1 CRUD API 연동
+// - 로그인: Google OAuth → /api/auth/google → 콜백 → 쿠키 설정
 // - 칼럼 저장: POST /api/admin/column (신규) / PUT /api/admin/column/:id (수정)
 // - 칼럼 삭제: DELETE /api/admin/column/:id
 // - 시드: POST /api/admin/seed
+// - 로그아웃: POST /api/auth/logout
+//
+// 인증은 서버 쿠키(admin_session)로 처리되므로,
+// 모든 fetch 요청에 credentials: 'same-origin'을 포함하여 쿠키 자동 전송.
 
 document.addEventListener('DOMContentLoaded', () => {
-  /* ===== 관리자 세션 관리 (서버 발급 토큰 기반) ===== */
-  const SESSION_KEY = 'admin_token'
-  const SESSION_TS_KEY = 'admin_token_ts'
-  const SESSION_DURATION = 4 * 60 * 60 * 1000 // 4시간
-
-  function getToken() {
-    const token = sessionStorage.getItem(SESSION_KEY)
-    const ts = parseInt(sessionStorage.getItem(SESSION_TS_KEY) || '0', 10)
-    if (!token || !ts) return null
-    // 4시간 경과 시 토큰 만료
-    if (Date.now() - ts > SESSION_DURATION) {
-      clearAuth()
-      return null
-    }
-    return token
-  }
-
-  function setToken(token) {
-    sessionStorage.setItem(SESSION_KEY, token)
-    sessionStorage.setItem(SESSION_TS_KEY, String(Date.now()))
-  }
-
-  function isAuthed() {
-    return getToken() !== null
-  }
-
-  function clearAuth() {
-    sessionStorage.removeItem(SESSION_KEY)
-    sessionStorage.removeItem(SESSION_TS_KEY)
-  }
-
-  // 인증 헤더 객체 생성
-  function authHeaders(extra = {}) {
-    const token = getToken()
-    const headers = { 'Content-Type': 'application/json', ...extra }
-    if (token) headers['Authorization'] = 'Bearer ' + token
-    return headers
-  }
-
   /* ===== 로그인 페이지 ===== */
-  const loginForm = document.getElementById('admin-login-form')
-  if (loginForm) {
-    // 이미 인증된 경우 관리자 목록으로 리다이렉트
-    if (isAuthed()) {
-      window.location.href = '/admin/column'
-      return
-    }
+  const loginPage = document.getElementById('google-login-btn')
 
-    // 비밀번호 표시/숨기기 토글
-    const togglePw = document.getElementById('toggle-pw')
-    const pwInput = document.getElementById('admin-pw')
-    if (togglePw && pwInput) {
-      togglePw.addEventListener('click', () => {
-        const isPassword = pwInput.type === 'password'
-        pwInput.type = isPassword ? 'text' : 'password'
-        togglePw.innerHTML = isPassword
-          ? '<i class="fas fa-eye-slash"></i>'
-          : '<i class="fas fa-eye"></i>'
-      })
-    }
-
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const errorEl = document.getElementById('login-error')
-      const errorMsg = document.getElementById('login-error-msg')
-      const btn = document.getElementById('admin-login-btn')
-
-      const password = pwInput ? pwInput.value : ''
-
-      btn.disabled = true
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> 확인 중...'
-
-      try {
-        const res = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password }),
-        })
-        const data = await res.json()
-
-        if (res.ok && data.ok && data.token) {
-          setToken(data.token)
-          errorEl.classList.add('hidden')
-          btn.innerHTML = '<i class="fas fa-check mr-2"></i> 로그인 성공'
-          setTimeout(() => {
-            window.location.href = '/admin/column'
-          }, 500)
-        } else {
-          errorEl.classList.remove('hidden')
-          if (errorMsg) errorMsg.textContent = data.error || '비밀번호가 올바르지 않습니다.'
-          btn.disabled = false
-          btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> 로그인'
-          pwInput.value = ''
-          pwInput.focus()
-        }
-      } catch (err) {
-        errorEl.classList.remove('hidden')
-        if (errorMsg) errorMsg.textContent = '서버 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.'
-        btn.disabled = false
-        btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> 로그인'
+  // 로그인 에러 메시지 처리 (콜백 리다이렉트 시 ?error= 파라미터)
+  const urlParams = new URLSearchParams(window.location.search)
+  const errorParam = urlParams.get('error')
+  if (errorParam) {
+    const errorEl = document.getElementById('login-error')
+    const errorMsg = document.getElementById('login-error-msg')
+    if (errorEl) errorEl.classList.remove('hidden')
+    if (errorMsg) {
+      const messages = {
+        google_denied: 'Google 로그인이 취소되었습니다.',
+        no_code: '인증 코드를 받지 못했습니다. 다시 시도해 주세요.',
       }
-    })
-    return
+      errorMsg.textContent = messages[errorParam] || decodeURIComponent(errorParam)
+    }
   }
+
+  // Google 로그인 버튼은 <a href="/api/auth/google"> 링크이므로 별도 처리 불필요
+  // (클릭 시 서버에서 Google 인증 페이지로 리다이렉트)
 
   /* ===== 관리자 페이지 접근 제어 ===== */
-  const isAdminPage =
-    document.getElementById('column-form') ||
-    document.querySelector('table') ||
-    document.getElementById('admin-logout')
-
-  if (isAdminPage && !isAuthed()) {
-    window.location.href = '/admin/column/login'
-    return
-  }
+  // 서버에서 쿠키 인증을 처리하므로, 클라이언트에서는 별도 토큰 관리 불필요
+  // 401 응답 시 자동으로 로그인 페이지로 리다이렉트
 
   /* ===== 로그아웃 ===== */
   const logoutBtn = document.getElementById('admin-logout')
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      clearAuth()
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'same-origin',
+        })
+      } catch (e) {
+        // 에러가 나도 로그인 페이지로 이동
+      }
       window.location.href = '/admin/column/login'
     })
   }
@@ -142,13 +63,17 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await fetch('/api/admin/seed', {
           method: 'POST',
-          headers: authHeaders(),
+          credentials: 'same-origin',
         })
         const data = await res.json()
         if (res.ok && data.ok) {
           alert(data.message)
           window.location.reload()
         } else {
+          if (res.status === 401) {
+            window.location.href = '/admin/column/login'
+            return
+          }
           alert(data.error || '시드에 실패했습니다.')
           seedBtn.disabled = false
           seedBtn.innerHTML = originalHtml
@@ -176,13 +101,17 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await fetch('/api/admin/column/' + id, {
           method: 'DELETE',
-          headers: authHeaders(),
+          credentials: 'same-origin',
         })
         const data = await res.json()
         if (res.ok && data.ok) {
           alert('칼럼이 삭제되었습니다.')
           window.location.reload()
         } else {
+          if (res.status === 401) {
+            window.location.href = '/admin/column/login'
+            return
+          }
           alert(data.error || '삭제에 실패했습니다.')
           btn.disabled = false
           btn.innerHTML = originalHtml
@@ -382,7 +311,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await fetch(url, {
           method: method,
-          headers: authHeaders(),
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin', // 쿠키 자동 전송 (인증)
           body: JSON.stringify(payload),
         })
         const data = await res.json()
@@ -395,7 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
           // 인증 만료 시 로그인 페이지로
           if (res.status === 401) {
             alert('로그인이 만료되었습니다. 다시 로그인해 주세요.')
-            clearAuth()
             window.location.href = '/admin/column/login'
             return
           }
