@@ -1,6 +1,6 @@
 import type { FC, Child } from 'hono/jsx'
 import { getCategory, getCategoryLabel, ensureButcherAlt } from '../lib/columns'
-import { getColumnBySlug, getRelatedColumns, getMetaTitle, getMetaDescription } from '../lib/dummy-data'
+import { getMetaTitle, getMetaDescription } from '../lib/dummy-data'
 import type { Column } from '../lib/columns'
 import type { HeadData } from '../renderer'
 import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
@@ -139,14 +139,13 @@ export function buildColumnHead(
 
 // ===== 칼럼 상세 페이지 =====
 interface ColumnDetailPageProps {
-  categorySlug: string
-  columnSlug: string
+  column: Column | undefined
+  related: Column[]
   baseUrl: string
 }
 
-export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ categorySlug, columnSlug, baseUrl }) => {
-  const column = getColumnBySlug(categorySlug, columnSlug)
-  const category = getCategory(categorySlug)
+export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, baseUrl }) => {
+  const category = column ? getCategory(column.category) : undefined
 
   // 칼럼이 없거나 카테고리가 없으면 404
   if (!column || !category) {
@@ -171,7 +170,6 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ categorySlug, colu
 
   const catLabel = category.label
   const thumbnailAlt = ensureButcherAlt(column.thumbnailAlt, column.category)
-  const related = getRelatedColumns(column, 3)
 
   return (
     <>

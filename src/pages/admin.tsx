@@ -1,6 +1,6 @@
 import type { FC } from 'hono/jsx'
 import { CATEGORIES, getCategoryLabel } from '../lib/columns'
-import { SORTED_COLUMNS, DUMMY_COLUMNS } from '../lib/dummy-data'
+import type { Column } from '../lib/columns'
 import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
 
 // ===== 관리자 로그인 페이지 =====
@@ -73,7 +73,11 @@ export const AdminLoginPage: FC = () => (
 )
 
 // ===== 관리자 칼럼 목록 페이지 =====
-export const AdminColumnListPage: FC = () => (
+interface AdminColumnListPageProps {
+  columns: Column[] // 라우트에서 D1 조회 후 전달
+}
+
+export const AdminColumnListPage: FC<AdminColumnListPageProps> = ({ columns }) => (
   <>
     <SiteHeader />
     <main class="pt-24 pb-20 min-h-screen">
@@ -91,9 +95,17 @@ export const AdminColumnListPage: FC = () => (
             <h1 class="text-2xl font-black text-navy">
               <i class="fas fa-newspaper text-gold mr-2"></i>칼럼 관리
             </h1>
-            <p class="mt-1 text-sm text-ink/60">총 {DUMMY_COLUMNS.length}개의 칼럼</p>
+            <p class="mt-1 text-sm text-ink/60">총 {columns.length}개의 칼럼</p>
           </div>
           <div class="flex items-center gap-3">
+            <button
+              type="button"
+              id="admin-seed-btn"
+              class="inline-flex items-center gap-2 text-sm font-bold text-navy hover:text-brand transition bg-cream-soft border border-gold/40 px-4 py-2.5 rounded-full"
+              title="더미 칼럼 18개를 데이터베이스에 삽입합니다"
+            >
+              <i class="fas fa-database"></i> 더미 데이터 시드
+            </button>
             <button
               id="admin-logout"
               class="inline-flex items-center gap-2 text-sm font-bold text-ink/60 hover:text-brand transition bg-white border border-navy/15 px-4 py-2.5 rounded-full"
@@ -124,7 +136,7 @@ export const AdminColumnListPage: FC = () => (
                 </tr>
               </thead>
               <tbody>
-                {SORTED_COLUMNS.map((col, i) => (
+                {columns.map((col, i) => (
                   <tr class={`border-t border-gold/20 hover:bg-cream-soft transition ${i % 2 === 1 ? 'bg-cream-soft/50' : ''}`}>
                     <td class="px-4 py-3 whitespace-nowrap">
                       <span class="inline-flex items-center text-xs font-bold text-brand bg-brand-soft px-2 py-1 rounded-full">
@@ -175,12 +187,12 @@ export const AdminColumnListPage: FC = () => (
 // ===== 관리자 칼럼 작성/수정 폼 페이지 =====
 interface AdminColumnFormPageProps {
   mode: 'new' | 'edit'
-  columnId?: number
+  column?: Column // 수정 모드일 때 기존 칼럼 데이터 (라우트에서 D1 조회 후 전달)
 }
 
-export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, columnId }) => {
+export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column }) => {
   const isEdit = mode === 'edit'
-  const col = isEdit && columnId ? DUMMY_COLUMNS.find((c) => c.id === columnId) : undefined
+  const col = isEdit ? column : undefined
 
   return (
     <>

@@ -1,6 +1,5 @@
 import type { FC } from 'hono/jsx'
 import { CATEGORIES, getCategoryLabel } from '../lib/columns'
-import { SORTED_COLUMNS, getColumnsByCategory } from '../lib/dummy-data'
 import type { Column } from '../lib/columns'
 import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
 
@@ -57,14 +56,13 @@ const ColumnCard: FC<{ column: Column }> = ({ column }) => {
 
 interface ColumnListPageProps {
   activeCategory?: string // null/undefined = 전체보기
+  columns: Column[] // 라우트에서 D1 조회 후 전달
 }
 
-export const ColumnListPage: FC<ColumnListPageProps> = ({ activeCategory }) => {
+export const ColumnListPage: FC<ColumnListPageProps> = ({ activeCategory, columns }) => {
   const isActive = (slug: string) => activeCategory === slug
   const isAll = !activeCategory
 
-  // 전체보기 또는 카테고리 필터링
-  const columns = activeCategory ? getColumnsByCategory(activeCategory) : SORTED_COLUMNS
   const activeCat = activeCategory ? CATEGORIES.find((c) => c.slug === activeCategory) : null
 
   // 카테고리 탭: 전체보기 + 6개 카테고리

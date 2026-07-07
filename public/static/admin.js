@@ -1,31 +1,48 @@
 // 관리자 페이지 스크립트
-// 로그인 인증, 리치 텍스트 에디터, 폼 제출, 이미지 업로드 미리보기
+// 서버 사이드 인증 + D1 CRUD API 연동
+// - 로그인: POST /api/admin/login → 토큰 발급
+// - 칼럼 저장: POST /api/admin/column (신규) / PUT /api/admin/column/:id (수정)
+// - 칼럼 삭제: DELETE /api/admin/column/:id
+// - 시드: POST /api/admin/seed
 
 document.addEventListener('DOMContentLoaded', () => {
-  /* ===== 관리자 세션 관리 (간단한 클라이언트 사이드 인증) ===== */
-  // 실제 운영에서는 서버 사이드 인증(JWT/세션) 사용 권장
-  // 현재는 데모용 클라이언트 사이드 비밀번호 검증
-  const ADMIN_PASSWORD = 'myungryun2026' // 데모용 비밀번호 (운영 시 환경변수로 이동)
-  const SESSION_KEY = 'admin_authed'
+  /* ===== 관리자 세션 관리 (서버 발급 토큰 기반) ===== */
+  const SESSION_KEY = 'admin_token'
+  const SESSION_TS_KEY = 'admin_token_ts'
   const SESSION_DURATION = 4 * 60 * 60 * 1000 // 4시간
 
-  function isAuthed() {
-    const data = sessionStorage.getItem(SESSION_KEY)
-    if (!data) return false
-    try {
-      const { ts } = JSON.parse(data)
-      return Date.now() - ts < SESSION_DURATION
-    } catch {
-      return false
+  function getToken() {
+    const token = sessionStorage.getItem(SESSION_KEY)
+    const ts = parseInt(sessionStorage.getItem(SESSION_TS_KEY) || '0', 10)
+    if (!token || !ts) return null
+    // 4시간 경과 시 토큰 만료
+    if (Date.now() - ts > SESSION_DURATION) {
+      clearAuth()
+      return null
     }
+    return token
   }
 
-  function setAuthed() {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ts: Date.now() }))
+  function setToken(token) {
+    sessionStorage.setItem(SESSION_KEY, token)
+    sessionStorage.setItem(SESSION_TS_KEY, String(Date.now()))
+  }
+
+  function isAuthed() {
+    return getToken() !== null
   }
 
   function clearAuth() {
     sessionStorage.removeItem(SESSION_KEY)
+    sessionStorage.removeItem(SESSION_TS_KEY)
+  }
+
+  // 인증 헤더 객체 생성
+  function authHeaders(extra = {}) {
+    const token = getToken()
+    const headers = { 'Content-Type': 'application/json', ...extra }
+    if (token) headers['Authorization'] = 'Bearer ' + token
+    return headers
   }
 
   /* ===== 로그인 페이지 ===== */
@@ -50,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
       })
     }
 
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault()
       const errorEl = document.getElementById('login-error')
       const errorMsg = document.getElementById('login-error-msg')
@@ -61,10 +78,16 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.disabled = true
       btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> 확인 중...'
 
-      // 데모용 비밀번호 검증 (운영 시 서버 API 호출로 변경)
-      setTimeout(() => {
-        if (password === ADMIN_PASSWORD) {
-          setAuthed()
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        })
+        const data = await res.json()
+
+        if (res.ok && data.ok && data.token) {
+          setToken(data.token)
           errorEl.classList.add('hidden')
           btn.innerHTML = '<i class="fas fa-check mr-2"></i> 로그인 성공'
           setTimeout(() => {
@@ -72,13 +95,18 @@ document.addEventListener('DOMContentLoaded', () => {
           }, 500)
         } else {
           errorEl.classList.remove('hidden')
-          if (errorMsg) errorMsg.textContent = '비밀번호가 올바르지 않습니다.'
+          if (errorMsg) errorMsg.textContent = data.error || '비밀번호가 올바르지 않습니다.'
           btn.disabled = false
           btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> 로그인'
           pwInput.value = ''
           pwInput.focus()
         }
-      }, 600)
+      } catch (err) {
+        errorEl.classList.remove('hidden')
+        if (errorMsg) errorMsg.textContent = '서버 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.'
+        btn.disabled = false
+        btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> 로그인'
+      }
     })
     return
   }
@@ -103,15 +131,66 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   }
 
+  /* ===== 시드 버튼 (더미 데이터 18개 삽입) ===== */
+  const seedBtn = document.getElementById('admin-seed-btn')
+  if (seedBtn) {
+    seedBtn.addEventListener('click', async () => {
+      if (!confirm('더미 칼럼 18개를 데이터베이스에 삽입하시겠습니까?\n(이미 데이터가 있으면 건너뜁니다)')) return
+      const originalHtml = seedBtn.innerHTML
+      seedBtn.disabled = true
+      seedBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> 삽입 중...'
+      try {
+        const res = await fetch('/api/admin/seed', {
+          method: 'POST',
+          headers: authHeaders(),
+        })
+        const data = await res.json()
+        if (res.ok && data.ok) {
+          alert(data.message)
+          window.location.reload()
+        } else {
+          alert(data.error || '시드에 실패했습니다.')
+          seedBtn.disabled = false
+          seedBtn.innerHTML = originalHtml
+        }
+      } catch (err) {
+        alert('서버 연결에 실패했습니다.')
+        seedBtn.disabled = false
+        seedBtn.innerHTML = originalHtml
+      }
+    })
+  }
+
   /* ===== 칼럼 삭제 ===== */
   const deleteBtns = document.querySelectorAll('.admin-delete-btn')
   deleteBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id')
       const title = btn.getAttribute('data-title')
-      if (confirm(`정말로 이 칼럼을 삭제하시겠습니까?\n\n제목: ${title}`)) {
-        // 데모: 실제 구현에서는 fetch('/api/admin/column/delete', { method: 'POST', body: ... })
-        alert('데모 환경에서는 칼럼 삭제가 실제로 처리되지 않습니다.\n운영 환경에서는 D1 데이터베이스에서 삭제됩니다.')
+      if (!confirm(`정말로 이 칼럼을 삭제하시겠습니까?\n\n제목: ${title}`)) return
+
+      const originalHtml = btn.innerHTML
+      btn.disabled = true
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 삭제 중...'
+
+      try {
+        const res = await fetch('/api/admin/column/' + id, {
+          method: 'DELETE',
+          headers: authHeaders(),
+        })
+        const data = await res.json()
+        if (res.ok && data.ok) {
+          alert('칼럼이 삭제되었습니다.')
+          window.location.reload()
+        } else {
+          alert(data.error || '삭제에 실패했습니다.')
+          btn.disabled = false
+          btn.innerHTML = originalHtml
+        }
+      } catch (err) {
+        alert('서버 연결에 실패했습니다.')
+        btn.disabled = false
+        btn.innerHTML = originalHtml
       }
     })
   })
@@ -185,15 +264,17 @@ document.addEventListener('DOMContentLoaded', () => {
     editor.addEventListener('blur', syncContent)
   }
 
-  /* ===== 썸네일 이미지 미리보기 ===== */
+  /* ===== 썸네일 이미지 미리보기 + dataURL 변환 ===== */
   const thumbInput = document.getElementById('f-thumbnail')
   const thumbPreview = document.getElementById('thumbnail-preview')
+  let thumbnailDataUrl = '' // 새로 선택한 썸네일의 dataURL
   if (thumbInput && thumbPreview) {
     thumbInput.addEventListener('change', (e) => {
       const file = e.target.files[0]
       if (!file) return
       const reader = new FileReader()
       reader.onload = (ev) => {
+        thumbnailDataUrl = ev.target.result
         thumbPreview.innerHTML = `<img src="${ev.target.result}" alt="썸네일 미리보기" style="width:100%;height:100%;object-fit:cover;" />`
       }
       reader.readAsDataURL(file)
@@ -232,10 +313,10 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   }
 
-  /* ===== 폼 제출 ===== */
+  /* ===== 폼 제출 (D1 CRUD API 호출) ===== */
   const columnForm = document.getElementById('column-form')
   if (columnForm) {
-    columnForm.addEventListener('submit', (e) => {
+    columnForm.addEventListener('submit', async (e) => {
       e.preventDefault()
       // 본문 내용 동기화
       if (editor && hiddenContent) {
@@ -243,32 +324,94 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const btn = document.getElementById('column-submit-btn')
+      const originalBtnHtml = btn ? btn.innerHTML : ''
+
+      // 폼 데이터 수집 → ColumnInput 객체 생성
+      const idInput = columnForm.querySelector('[name="id"]')
+      const editId = idInput ? idInput.value.trim() : ''
+      const isEdit = editId !== ''
+
+      // 썸네일: 새 파일 선택 시 dataURL, 아니면 기존 thumbnail_existing 값
+      let thumbnail = thumbnailDataUrl
+      if (!thumbnail) {
+        const existingInput = columnForm.querySelector('[name="thumbnail_existing"]')
+        thumbnail = existingInput ? existingInput.value : ''
+      }
+
+      const payload = {
+        category: (columnForm.querySelector('[name="category"]') || {}).value || '',
+        title: (columnForm.querySelector('[name="title"]') || {}).value || '',
+        slug: (columnForm.querySelector('[name="slug"]') || {}).value || '',
+        excerpt: (columnForm.querySelector('[name="excerpt"]') || {}).value || '',
+        content: (hiddenContent || {}).value || '',
+        thumbnail: thumbnail,
+        thumbnail_alt: (columnForm.querySelector('[name="thumbnail_alt"]') || {}).value || '',
+        author: (columnForm.querySelector('[name="author"]') || {}).value || '',
+        published_at: (columnForm.querySelector('[name="published_at"]') || {}).value || '',
+        meta_title: (columnForm.querySelector('[name="meta_title"]') || {}).value || '',
+        meta_description: (columnForm.querySelector('[name="meta_description"]') || {}).value || '',
+        is_published: 1,
+      }
+
+      // 클라이언트 사이드 기본 검증
+      if (!payload.title.trim()) {
+        alert('제목을 입력해 주세요.')
+        return
+      }
+      if (!payload.slug.trim()) {
+        alert('URL 슬러그를 입력해 주세요.')
+        return
+      }
+      if (!payload.content.trim() || payload.content === '<br>' || payload.content === '<div><br></div>') {
+        alert('본문을 입력해 주세요.')
+        return
+      }
+      if (!payload.published_at) {
+        alert('발행일을 선택해 주세요.')
+        return
+      }
+
       if (btn) {
         btn.disabled = true
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장 중...'
       }
 
-      // 데모: 실제 구현에서는 fetch('/api/admin/column/save', { method: 'POST', ... })
-      // 폼 데이터 수집
-      const formData = new FormData(columnForm)
-      const data = {}
-      formData.forEach((val, key) => {
-        data[key] = val
-      })
+      const url = isEdit ? '/api/admin/column/' + encodeURIComponent(editId) : '/api/admin/column'
+      const method = isEdit ? 'PUT' : 'POST'
 
-      setTimeout(() => {
-        alert(
-          '데모 환경에서는 칼럼 저장이 실제로 처리되지 않습니다.\n\n' +
-            '운영 환경에서는 D1 데이터베이스에 저장되고:\n' +
-            '- 칼럼 목록에 즉시 반영\n' +
-            '- sitemap.xml 자동 갱신\n' +
-            '- SEO 메타 태그 자동 생성'
-        )
+      try {
+        const res = await fetch(url, {
+          method: method,
+          headers: authHeaders(),
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json()
+
+        if (res.ok && data.ok) {
+          alert(data.message || (isEdit ? '칼럼이 수정되었습니다.' : '칼럼이 저장되었습니다.'))
+          // 관리자 칼럼 목록으로 이동
+          window.location.href = '/admin/column'
+        } else {
+          // 인증 만료 시 로그인 페이지로
+          if (res.status === 401) {
+            alert('로그인이 만료되었습니다. 다시 로그인해 주세요.')
+            clearAuth()
+            window.location.href = '/admin/column/login'
+            return
+          }
+          alert(data.error || '저장에 실패했습니다.')
+          if (btn) {
+            btn.disabled = false
+            btn.innerHTML = originalBtnHtml
+          }
+        }
+      } catch (err) {
+        alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.')
         if (btn) {
           btn.disabled = false
-          btn.innerHTML = '<i class="fas fa-save"></i> 칼럼 저장'
+          btn.innerHTML = originalBtnHtml
         }
-      }, 800)
+      }
     })
   }
 })
