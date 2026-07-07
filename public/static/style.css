@@ -68,3 +68,200 @@ section[id] {
   background-clip: text;
   color: transparent;
 }
+
+/* ===== 스크롤바 숨기기 (카테고리 탭용) ===== */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ===== line-clamp 유틸리티 (Tailwind CDN에 없을 수 있음) ===== */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* ===== 칼럼 본문 타이포그래피 (.prose-column) ===== */
+.prose-column {
+  color: var(--ink);
+  line-height: 1.8;
+  font-size: 1rem;
+}
+.prose-column .lead {
+  font-size: 1.125rem;
+  line-height: 1.7;
+  color: var(--ink);
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid rgba(201, 168, 76, 0.3);
+}
+.prose-column h2 {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--navy);
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  line-height: 1.4;
+  padding-left: 0.75rem;
+  border-left: 4px solid var(--brand);
+}
+.prose-column h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+.prose-column p {
+  margin-bottom: 1.25rem;
+}
+.prose-column ul {
+  margin: 1rem 0 1.5rem 0;
+  padding-left: 1.5rem;
+  list-style: none;
+}
+.prose-column ul li {
+  position: relative;
+  padding-left: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+.prose-column ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+.prose-column ol {
+  margin: 1rem 0 1.5rem 0;
+  padding-left: 1.5rem;
+  list-style: decimal;
+}
+.prose-column ol li {
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+}
+.prose-column strong {
+  font-weight: 700;
+  color: var(--navy);
+}
+.prose-column blockquote {
+  margin: 1.5rem 0;
+  padding: 1rem 1.5rem;
+  background: var(--cream-soft);
+  border-left: 4px solid var(--gold);
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+.prose-column img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin: 1.5rem 0;
+  border: 1px solid rgba(201, 168, 76, 0.3);
+}
+.prose-column table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  border: 1px solid rgba(26, 42, 74, 0.15);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.prose-column table th {
+  background: var(--navy);
+  color: #fff;
+  font-weight: 700;
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+.prose-column table td {
+  padding: 0.625rem 1rem;
+  border-top: 1px solid rgba(26, 42, 74, 0.1);
+}
+.prose-column table tr:nth-child(even) td {
+  background: var(--cream-soft);
+}
+
+/* ===== 관리자 페이지 본문 에디터 (.prose-admin) ===== */
+.prose-admin {
+  line-height: 1.7;
+  font-size: 0.95rem;
+}
+.prose-admin:empty::before {
+  content: '여기에 본문을 입력하세요...';
+  color: var(--ink);
+  opacity: 0.3;
+}
+.prose-admin h2 {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--navy);
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+.prose-admin h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+.prose-admin p { margin-bottom: 1rem; }
+.prose-admin ul { padding-left: 1.5rem; list-style: disc; margin: 0.5rem 0; }
+.prose-admin ol { padding-left: 1.5rem; list-style: decimal; margin: 0.5rem 0; }
+.prose-admin blockquote {
+  padding: 0.75rem 1rem;
+  background: #f0f0f0;
+  border-left: 3px solid var(--gold);
+  margin: 1rem 0;
+}
+.prose-admin img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1rem 0; }
+.prose-admin table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+.prose-admin table th, .prose-admin table td {
+  border: 1px solid #ddd;
+  padding: 0.5rem 0.75rem;
+}
+
+/* 관리자 포맷 툴바 버튼 */
+.format-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(26, 42, 74, 0.15);
+  background: white;
+  color: var(--navy);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.format-btn:hover {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.format-btn:active {
+  transform: scale(0.95);
+}
