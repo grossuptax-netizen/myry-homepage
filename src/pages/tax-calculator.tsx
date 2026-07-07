@@ -4,7 +4,7 @@ import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
 // ===== 세금계산기 페이지 (준비 중 플레이스홀더) =====
 // 사용자 요청: "세금계산기부분은 나중에 따로 기능을 만들거야"
 // 메뉴 링크가 404가 되지 않도록 플레이스홀더 페이지 제공
-export const TaxCalculatorPage: FC = () => (
+export const TaxCalculatorPage: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
   <html lang="ko">
     <head>
       <meta charset="UTF-8" />
@@ -17,7 +17,7 @@ export const TaxCalculatorPage: FC = () => (
       <link href="/static/style.css" rel="stylesheet" />
     </head>
     <body class="bg-cream">
-      <SiteHeader activeNav="calculator" />
+      <SiteHeader activeNav="calculator" isAdmin={isAdmin} />
 
       <main class="pt-16">
         <section class="py-24 md:py-32 min-h-[70vh] flex items-center">

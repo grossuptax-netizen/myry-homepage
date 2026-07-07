@@ -1,7 +1,8 @@
 import type { FC } from 'hono/jsx'
 
 // ===== Header / 상단 네비게이션 =====
-const Header: FC = () => (
+// isAdmin: Google OAuth 로그인(grossuptax@gmail.com) 시 관리자페이지 버튼 노출
+const Header: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
   <header
     id="site-header"
     class="fixed top-0 inset-x-0 z-50 bg-cream/95 backdrop-blur border-b border-gold/30"
@@ -23,12 +24,22 @@ const Header: FC = () => (
         <li><a href="/tax-calculator" class="hover:text-brand transition">세금계산기</a></li>
       </ul>
 
-      <a
-        href="#consult"
-        class="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white text-sm font-bold px-4 py-2.5 rounded-full transition shadow-md shadow-brand/30 ring-1 ring-gold/50"
-      >
-        <i class="fas fa-comment-dots"></i> 무료 상담신청
-      </a>
+      <div class="flex items-center gap-2">
+        {isAdmin && (
+          <a
+            href="/admin/column"
+            class="inline-flex items-center gap-1.5 bg-navy hover:bg-navy-dark text-white text-sm font-bold px-4 py-2.5 rounded-full transition shadow-md shadow-navy/30 ring-1 ring-gold/50"
+          >
+            <i class="fas fa-gear"></i> 관리자페이지
+          </a>
+        )}
+        <a
+          href="#consult"
+          class="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white text-sm font-bold px-4 py-2.5 rounded-full transition shadow-md shadow-brand/30 ring-1 ring-gold/50"
+        >
+          <i class="fas fa-comment-dots"></i> 무료 상담신청
+        </a>
+      </div>
     </nav>
   </header>
 )
@@ -512,9 +523,9 @@ const Footer: FC = () => (
 )
 
 // ===== 페이지 조립 =====
-export const Home: FC = () => (
+export const Home: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
   <>
-    <Header />
+    <Header isAdmin={isAdmin} />
     <main>
       <Hero />
       <Stats />

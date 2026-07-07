@@ -57,9 +57,10 @@ const ColumnCard: FC<{ column: Column }> = ({ column }) => {
 interface ColumnListPageProps {
   activeCategory?: string // null/undefined = 전체보기
   columns: Column[] // 라우트에서 D1 조회 후 전달
+  isAdmin?: boolean // Google OAuth 로그인 시 관리자페이지 버튼 노출
 }
 
-export const ColumnListPage: FC<ColumnListPageProps> = ({ activeCategory, columns }) => {
+export const ColumnListPage: FC<ColumnListPageProps> = ({ activeCategory, columns, isAdmin }) => {
   const isActive = (slug: string) => activeCategory === slug
   const isAll = !activeCategory
 
@@ -70,7 +71,7 @@ export const ColumnListPage: FC<ColumnListPageProps> = ({ activeCategory, column
 
   return (
     <>
-      <SiteHeader activeNav="column" />
+      <SiteHeader activeNav="column" isAdmin={isAdmin} />
       <main>
         {/* ===== 페이지 헤더 (히어로 영역) ===== */}
         <section class="relative pt-28 pb-12 bg-gradient-to-b from-cream-soft via-cream to-cream overflow-hidden">

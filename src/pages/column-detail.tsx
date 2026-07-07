@@ -142,16 +142,17 @@ interface ColumnDetailPageProps {
   column: Column | undefined
   related: Column[]
   baseUrl: string
+  isAdmin?: boolean // Google OAuth 로그인 시 관리자페이지 버튼 노출
 }
 
-export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, baseUrl }) => {
+export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, baseUrl, isAdmin }) => {
   const category = column ? getCategory(column.category) : undefined
 
   // 칼럼이 없거나 카테고리가 없으면 404
   if (!column || !category) {
     return (
       <>
-        <SiteHeader activeNav="column" />
+        <SiteHeader activeNav="column" isAdmin={isAdmin} />
         <main class="pt-32 pb-20 min-h-screen">
           <div class="max-w-2xl mx-auto px-5 text-center">
             <i class="fas fa-exclamation-circle text-5xl text-gold/50 mb-4"></i>
@@ -173,7 +174,7 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, b
 
   return (
     <>
-      <SiteHeader activeNav="column" />
+      <SiteHeader activeNav="column" isAdmin={isAdmin} />
       <main>
         {/* ===== 상단 메타 영역 ===== */}
         <section class="relative pt-28 pb-8 bg-gradient-to-b from-cream-soft to-cream overflow-hidden">

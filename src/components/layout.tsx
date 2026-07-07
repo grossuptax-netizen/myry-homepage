@@ -2,11 +2,13 @@ import type { FC } from 'hono/jsx'
 
 // ===== 공통 헤더 (홈페이지 + 칼럼 페이지 공용) =====
 // 기존 홈페이지 디자인 그대로 유지하되, 칼럼 메뉴 추가
+// isAdmin: Google OAuth 로그인(grossuptax@gmail.com) 시 true → 관리자페이지 버튼 노출
 interface HeaderProps {
   activeNav?: string
+  isAdmin?: boolean
 }
 
-export const SiteHeader: FC<HeaderProps> = ({ activeNav }) => (
+export const SiteHeader: FC<HeaderProps> = ({ activeNav, isAdmin }) => (
   <header
     id="site-header"
     class="fixed top-0 inset-x-0 z-50 bg-cream/95 backdrop-blur border-b border-gold/30"
@@ -42,12 +44,22 @@ export const SiteHeader: FC<HeaderProps> = ({ activeNav }) => (
         </li>
       </ul>
 
-      <a
-        href="/#consult"
-        class="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white text-sm font-bold px-4 py-2.5 rounded-full transition shadow-md shadow-brand/30 ring-1 ring-gold/50"
-      >
-        <i class="fas fa-comment-dots"></i> 무료 상담신청
-      </a>
+      <div class="flex items-center gap-2">
+        {isAdmin && (
+          <a
+            href="/admin/column"
+            class="inline-flex items-center gap-1.5 bg-navy hover:bg-navy-dark text-white text-sm font-bold px-4 py-2.5 rounded-full transition shadow-md shadow-navy/30 ring-1 ring-gold/50"
+          >
+            <i class="fas fa-gear"></i> 관리자페이지
+          </a>
+        )}
+        <a
+          href="/#consult"
+          class="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white text-sm font-bold px-4 py-2.5 rounded-full transition shadow-md shadow-brand/30 ring-1 ring-gold/50"
+        >
+          <i class="fas fa-comment-dots"></i> 무료 상담신청
+        </a>
+      </div>
     </nav>
   </header>
 )

@@ -96,7 +96,8 @@ function checkAdminAuthCookie(c: any): { authed: boolean; email?: string } {
 
 // ===== 메인 랜딩 페이지 =====
 app.get('/', (c) => {
-  return c.render(<Home />)
+  const { authed } = checkAdminAuthCookie(c)
+  return c.render(<Home isAdmin={authed} />)
 })
 
 // ===== 상담 신청 접수 API =====
@@ -159,7 +160,8 @@ app.get('/column', async (c) => {
       '정육점·축산물 세무 전문가의 인사이트 칼럼. 의제매입세액공제부터 정부지원금까지.',
     canonical: `${baseUrl}/column`,
   } as HeadData)
-  return c.render(<ColumnListPage activeCategory={undefined} columns={columns} />)
+  const { authed } = checkAdminAuthCookie(c)
+  return c.render(<ColumnListPage activeCategory={undefined} columns={columns} isAdmin={authed} />)
 })
 
 // 칼럼 목록 페이지 - 카테고리 필터
@@ -180,7 +182,8 @@ app.get('/column/:categorySlug', async (c) => {
     ogDescription: category.desc,
     canonical: `${baseUrl}/column/${categorySlug}`,
   } as HeadData)
-  return c.render(<ColumnListPage activeCategory={categorySlug} columns={columns} />)
+  const { authed } = checkAdminAuthCookie(c)
+  return c.render(<ColumnListPage activeCategory={categorySlug} columns={columns} isAdmin={authed} />)
 })
 
 // 칼럼 상세 페이지: /column/[카테고리]/[슬러그]
@@ -195,7 +198,8 @@ app.get('/column/:categorySlug/:columnSlug', async (c) => {
   if (!category || !column) {
     // 404 페이지
     c.set('head', { title: '칼럼을 찾을 수 없습니다 | 명륜세무회계', robots: 'noindex' } as HeadData)
-    return c.render(<ColumnDetailPage column={undefined} related={[]} baseUrl={baseUrl} />)
+    const { authed } = checkAdminAuthCookie(c)
+    return c.render(<ColumnDetailPage column={undefined} related={[]} baseUrl={baseUrl} isAdmin={authed} />)
   }
 
   // head 데이터 설정 (SEO, OG, canonical, 구조화 데이터)
@@ -208,7 +212,8 @@ app.get('/column/:categorySlug/:columnSlug', async (c) => {
   // 조회수 증가 (비동기, 응답 지연 방지)
   c.executionCtx.waitUntil(incrementViewsDb(c.env.DB, column.id))
 
-  return c.render(<ColumnDetailPage column={column} related={related} baseUrl={baseUrl} />)
+  const { authed } = checkAdminAuthCookie(c)
+  return c.render(<ColumnDetailPage column={column} related={related} baseUrl={baseUrl} isAdmin={authed} />)
 })
 
 // ===== 세금계산기 페이지 (플레이스홀더 - 기능은 추후 구현) =====
@@ -219,7 +224,8 @@ app.get('/tax-calculator', (c) => {
       '정육점·축산물 세무 전용 세금계산기. 현재 준비 중이며, 오픈 시 의제매입세액공제·부가세·종합소득세 시뮬레이션을 제공합니다.',
     robots: 'noindex',
   } as HeadData)
-  return c.render(<TaxCalculatorPage />)
+  const { authed } = checkAdminAuthCookie(c)
+  return c.render(<TaxCalculatorPage isAdmin={authed} />)
 })
 
 // ===== 관리자 페이지 라우트 =====
