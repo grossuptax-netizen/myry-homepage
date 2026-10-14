@@ -373,3 +373,161 @@ export async function seedDatabase(db: D1Database | undefined): Promise<{ seeded
     throw e
   }
 }
+
+// ============================================================================
+// ===== 관리자 이메일(admin_emails) CRUD =====
+// ============================================================================
+// Google OAuth 로그인 후 접근 허용된 이메일 목록을 D1에서 관리
+// /admin/settings 페이지의 UI에서 추가/삭제/활성화 관리
+
+export interface AdminEmail {
+  id: number
+  email: string
+  displayName: string | null
+  note: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+interface AdminEmailRow {
+  id: number
+  email: string
+  display_name: string | null
+  note: string | null
+  is_active: number
+  created_at: string
+  updated_at: string
+}
+
+function rowToAdminEmail(row: AdminEmailRow): AdminEmail {
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name,
+    note: row.note,
+    isActive: row.is_active === 1,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+// 전체 관리자 이메일 목록 조회 (활성/비활성 모두)
+export async function listAdminEmails(db: D1Database | undefined): Promise<AdminEmail[]> {
+  if (!db) return []
+  try {
+    const res = await db
+      .prepare(
+        'SELECT id, email, display_name, note, is_active, created_at, updated_at FROM admin_emails ORDER BY created_at ASC'
+      )
+      .all<AdminEmailRow>()
+    return (res.results || []).map(rowToAdminEmail)
+  } catch (e) {
+    console.error('listAdminEmails error:', e)
+    return []
+  }
+}
+
+// 관리자 이메일 추가
+export async function addAdminEmail(
+  db: D1Database | undefined,
+  input: { email: string; displayName?: string; note?: string }
+): Promise<{ ok: true; id: number } | { ok: false; error: string }> {
+  if (!db) return { ok: false, error: '데이터베이스를 사용할 수 없습니다.' }
+  const email = input.email.trim().toLowerCase()
+  if (!email) return { ok: false, error: '이메일을 입력하세요.' }
+  // 간단한 이메일 포맷 검증
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: '유효한 이메일 형식이 아닙니다.' }
+  }
+  try {
+    const result = await db
+      .prepare(
+        'INSERT INTO admin_emails (email, display_name, note, is_active) VALUES (?, ?, ?, 1)'
+      )
+      .bind(email, input.displayName?.trim() || null, input.note?.trim() || null)
+      .run()
+    const id = (result.meta?.last_row_id as number) ?? 0
+    return { ok: true, id }
+  } catch (e: any) {
+    // UNIQUE 제약 위반
+    if (String(e?.message || '').toLowerCase().includes('unique')) {
+      return { ok: false, error: '이미 등록된 이메일입니다.' }
+    }
+    console.error('addAdminEmail error:', e)
+    return { ok: false, error: '추가 중 오류가 발생했습니다.' }
+  }
+}
+
+// 관리자 이메일 수정 (활성 토글, 이름/메모 변경)
+export async function updateAdminEmail(
+  db: D1Database | undefined,
+  id: number,
+  input: { displayName?: string | null; note?: string | null; isActive?: boolean }
+): Promise<{ ok: boolean; error?: string }> {
+  if (!db) return { ok: false, error: '데이터베이스를 사용할 수 없습니다.' }
+  try {
+    const sets: string[] = []
+    const binds: any[] = []
+    if (input.displayName !== undefined) {
+      sets.push('display_name = ?')
+      binds.push(input.displayName?.trim() || null)
+    }
+    if (input.note !== undefined) {
+      sets.push('note = ?')
+      binds.push(input.note?.trim() || null)
+    }
+    if (input.isActive !== undefined) {
+      sets.push('is_active = ?')
+      binds.push(input.isActive ? 1 : 0)
+    }
+    if (sets.length === 0) return { ok: true }
+    sets.push("updated_at = CURRENT_TIMESTAMP")
+    binds.push(id)
+    await db
+      .prepare(`UPDATE admin_emails SET ${sets.join(', ')} WHERE id = ?`)
+      .bind(...binds)
+      .run()
+    return { ok: true }
+  } catch (e: any) {
+    console.error('updateAdminEmail error:', e)
+    return { ok: false, error: '수정 중 오류가 발생했습니다.' }
+  }
+}
+
+// 관리자 이메일 삭제
+export async function deleteAdminEmail(
+  db: D1Database | undefined,
+  id: number
+): Promise<{ ok: boolean; error?: string }> {
+  if (!db) return { ok: false, error: '데이터베이스를 사용할 수 없습니다.' }
+  try {
+    await db.prepare('DELETE FROM admin_emails WHERE id = ?').bind(id).run()
+    return { ok: true }
+  } catch (e: any) {
+    console.error('deleteAdminEmail error:', e)
+    return { ok: false, error: '삭제 중 오류가 발생했습니다.' }
+  }
+}
+
+// 특정 이메일이 활성 관리자인지 조회 (auth.ts isAllowedEmail에서 사용 가능)
+export async function isActiveAdminEmail(
+  db: D1Database | undefined,
+  email: string
+): Promise<boolean> {
+  if (!db) return false
+  const normalized = email.trim().toLowerCase()
+  if (!normalized) return false
+  try {
+    const row = await db
+      .prepare(
+        'SELECT 1 as hit FROM admin_emails WHERE email = ? AND is_active = 1 LIMIT 1'
+      )
+      .bind(normalized)
+      .first<{ hit: number }>()
+    return !!row
+  } catch (e) {
+    console.error('isActiveAdminEmail error:', e)
+    return false
+  }
+}

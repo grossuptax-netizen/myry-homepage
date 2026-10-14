@@ -61,10 +61,18 @@ EY 코리아 인사이트 페이지(ey.com/ko_kr/insights) 구조를 레퍼런�
 | GET | `/column` | 칼럼 목록 (전체) | 카테고리 탭 + 카드 그리드 |
 | GET | `/column/:category` | 카테고리별 칼럼 목록 | vat/inventory/labor/business-type/subsidy/tax-news |
 | GET | `/column/:category/:slug` | 칼럼 상세 | SEO/OG/JSON-LD 포함 |
-| GET | `/admin/column/login` | 관리자 로그인 | robots noindex |
-| GET | `/admin/column` | 관리자 칼럼 목록 | robots noindex, 세션 필요 |
-| GET | `/admin/column/new` | 새 칼럼 작성 | robots noindex |
-| GET | `/admin/column/edit/:id` | 칼럼 수정 | robots noindex |
+| GET | `/admin/column/login` | 관리자 로그인 (Google OAuth) | robots noindex |
+| GET | `/admin/column` | 관리자 칼럼 목록 | robots noindex, 쿠키 세션 + 활성 관리자 재확인 |
+| GET | `/admin/column/new` | 새 칼럼 작성 | robots noindex, 인증 필요 |
+| GET | `/admin/column/edit/:id` | 칼럼 수정 | robots noindex, 인증 필요 |
+| GET | `/admin/settings` | 관리자 계정 설정(허용 이메일 CRUD) | robots noindex, 인증 필요 |
+| GET | `/api/auth/google` | Google OAuth 로그인 시작 | 리다이렉트 |
+| GET | `/api/auth/google/callback` | Google OAuth 콜백 (코드 → 토큰 → 세션 쿠키) | 쿠키 발급 |
+| GET\|POST | `/api/auth/logout` | 로그아웃 (쿠키 삭제) | — |
+| GET | `/api/admin/admins` | 관리자 이메일 목록 조회 | JSON, 인증 |
+| POST | `/api/admin/admins` | 관리자 이메일 추가 | JSON, 인증 |
+| PATCH | `/api/admin/admins/:id` | 관리자 이메일 수정(활성 토글/이름/메모) | JSON, 인증 |
+| DELETE | `/api/admin/admins/:id` | 관리자 이메일 삭제 | JSON, 인증 |
 | GET | `/sitemap.xml` | 메인 sitemap | - |
 | GET | `/sitemap-columns.xml` | 칼럼 전용 sitemap | 18개 칼럼 자동 갱신 |
 | GET | `/robots.txt` | robots | sitemap 참조, /admin noindex |
@@ -90,11 +98,32 @@ JSON Body: `name`(필수), `phone`(필수), `business`(선택), `message`(선택
 - **카테고리 정의**: `src/lib/columns.ts` (slug, label, icon, desc)
 - **SEO 헬퍼**: alt 텍스트 자동 보정, 메타 타이틀/설명 생성
 
-## 관리자 접근법 (Admin Access)
+## 관리자 접근법 (Admin Access) — Google OAuth 전용
 - **로그인 URL**: `/admin/column/login`
-- **데모 비밀번호**: `myungryun2026`
-- **세션**: sessionStorage 기반, 4시간 만료
-- **기능**: 칼럼 작성/수정/삭제 (현재 데모 모드 - alert만 표시, D1 연동 후 실제 저장)
+- **인증 방식**: **Google OAuth 2.0 소셜 로그인 (Authorization Code Flow)**
+- **접근 허용**: Google 로그인 성공 + D1 `admin_emails` 테이블의 활성 이메일 목록에 포함된 계정만
+- **세션 유지**: HttpOnly 쿠키 `admin_session` (HMAC-SHA256 서명, 7일 만료)
+- **관리자 이메일 관리**: `/admin/settings` 페이지에서 UI로 추가/삭제/활성·비활성 토글 (D1 저장)
+- **환경변수 Fallback**: D1 활성 관리자가 0명일 때만 `ALLOWED_GOOGLE_EMAILS` 환경변수로 초기 부트스트랩 가능 (잠김 방지)
+- **안전장치**:
+  - 현재 로그인한 본인은 자신의 활성 토글 OFF / 삭제 불가 (자가 잠김 방지)
+  - 마지막 남은 활성 관리자 1명은 비활성화 불가
+  - API 요청마다 D1에서 "여전히 활성 관리자인가" 재확인 (권한 회수 즉시 반영)
+- **공개 영역 분리**: 일반 방문자의 `/column`, `/column/:category/:slug`는 완전 공개 (인증 무관)
+
+### 필수 환경변수 (운영)
+| 변수 | 설명 | 필수 |
+|------|------|------|
+| `GOOGLE_CLIENT_ID` | Google Cloud Console의 OAuth 2.0 Client ID | ✅ |
+| `GOOGLE_CLIENT_SECRET` | Google Cloud Console의 OAuth 2.0 Client Secret | ✅ |
+| `SESSION_SECRET` | HMAC 서명용 임의 비밀키 (미설정 시 CLIENT_SECRET 사용) | 권장 |
+| `ALLOWED_GOOGLE_EMAILS` | 초기 부트스트랩용 콤마 구분 이메일 (D1 비어있을 때만 사용) | 선택 |
+| `OAUTH_REDIRECT_BASE` | OAuth 리다이렉트 기본 URL (미설정 시 요청 호스트 추출) | 선택 |
+
+### Google Cloud Console 설정
+1. [Google Cloud Console](https://console.cloud.google.com/) → OAuth 2.0 Client ID 생성 (웹 애플리케이션)
+2. **승인된 리디렉션 URI**: `https://<배포도메인>/api/auth/google/callback`
+3. 발급받은 Client ID / Client Secret을 Cloudflare Workers의 환경변수(secret)로 등록
 
 ## 보안 조치 (Bot & Spam Protection)
 1. **이메일 주소 난독화** – charCode 인코딩 (HTML 평문 노출 없음)

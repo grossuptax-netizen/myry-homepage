@@ -1,7 +1,56 @@
 import type { FC } from 'hono/jsx'
 import { CATEGORIES, getCategoryLabel } from '../lib/columns'
 import type { Column } from '../lib/columns'
+import type { AdminEmail } from '../lib/db'
 import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
+
+// ===== 관리자 공통 네비게이션 바 =====
+interface AdminNavProps {
+  active?: 'columns' | 'settings'
+  userEmail?: string
+}
+
+const AdminNav: FC<AdminNavProps> = ({ active, userEmail }) => (
+  <div class="bg-white rounded-2xl border border-gold/30 shadow-sm px-4 py-3 mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center gap-1">
+      <a
+        href="/admin/column"
+        class={`inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-full transition ${
+          active === 'columns'
+            ? 'bg-brand text-white shadow-sm ring-1 ring-gold/50'
+            : 'text-navy/70 hover:bg-cream-soft hover:text-brand'
+        }`}
+      >
+        <i class="fas fa-newspaper"></i> 칼럼 관리
+      </a>
+      <a
+        href="/admin/settings"
+        class={`inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-full transition ${
+          active === 'settings'
+            ? 'bg-brand text-white shadow-sm ring-1 ring-gold/50'
+            : 'text-navy/70 hover:bg-cream-soft hover:text-brand'
+        }`}
+      >
+        <i class="fas fa-user-shield"></i> 관리자 계정
+      </a>
+    </div>
+    <div class="flex items-center gap-3 text-xs">
+      {userEmail && (
+        <span class="hidden sm:inline-flex items-center gap-1.5 text-ink/60">
+          <i class="fab fa-google text-gold"></i>
+          <span class="font-medium">{userEmail}</span>
+        </span>
+      )}
+      <button
+        id="admin-logout"
+        type="button"
+        class="inline-flex items-center gap-1.5 text-ink/60 hover:text-brand transition font-bold border border-navy/15 px-3 py-1.5 rounded-full"
+      >
+        <i class="fas fa-sign-out-alt"></i> 로그아웃
+      </button>
+    </div>
+  </div>
+)
 
 // ===== 관리자 로그인 페이지 =====
 interface AdminLoginPageProps {
@@ -80,23 +129,16 @@ export const AdminColumnListPage: FC<AdminColumnListPageProps> = ({ columns, use
     <SiteHeader />
     <main class="pt-24 pb-20 min-h-screen">
       <div class="max-w-6xl mx-auto px-5">
+        {/* 관리자 네비게이션 */}
+        <AdminNav active="columns" userEmail={userEmail} />
+
         {/* 헤더 */}
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <nav aria-label="breadcrumb" class="text-sm text-ink/50 mb-2">
-              <a href="/" class="hover:text-brand transition">홈</a>
-              <span class="mx-2">›</span>
-              <span class="text-navy font-medium">관리자</span>
-              <span class="mx-2">›</span>
-              <span class="text-navy font-medium">칼럼 관리</span>
-            </nav>
             <h1 class="text-2xl font-black text-navy">
               <i class="fas fa-newspaper text-gold mr-2"></i>칼럼 관리
             </h1>
-            <p class="mt-1 text-sm text-ink/60">
-              총 {columns.length}개의 칼럼
-              {userEmail && <span class="ml-2 text-ink/40">· 로그인: {userEmail}</span>}
-            </p>
+            <p class="mt-1 text-sm text-ink/60">총 {columns.length}개의 칼럼</p>
           </div>
           <div class="flex items-center gap-3">
             <button
@@ -106,12 +148,6 @@ export const AdminColumnListPage: FC<AdminColumnListPageProps> = ({ columns, use
               title="더미 칼럼 18개를 데이터베이스에 삽입합니다"
             >
               <i class="fas fa-database"></i> 더미 데이터 시드
-            </button>
-            <button
-              id="admin-logout"
-              class="inline-flex items-center gap-2 text-sm font-bold text-ink/60 hover:text-brand transition bg-white border border-navy/15 px-4 py-2.5 rounded-full"
-            >
-              <i class="fas fa-sign-out-alt"></i> 로그아웃
             </button>
             <a
               href="/admin/column/new"
@@ -494,3 +530,219 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
     </>
   )
 }
+
+// ===== 관리자 계정(허용 이메일) 설정 페이지 =====
+interface AdminSettingsPageProps {
+  admins: AdminEmail[]
+  userEmail?: string
+  envFallbackActive?: boolean // 환경변수 fallback 모드 활성화 여부
+  envFallbackList?: string[] // 환경변수 부트스트랩 이메일 (참고용 노출)
+}
+
+export const AdminSettingsPage: FC<AdminSettingsPageProps> = ({
+  admins,
+  userEmail,
+  envFallbackActive,
+  envFallbackList,
+}) => (
+  <>
+    <SiteHeader />
+    <main class="pt-24 pb-20 min-h-screen">
+      <div class="max-w-5xl mx-auto px-5">
+        {/* 관리자 네비게이션 */}
+        <AdminNav active="settings" userEmail={userEmail} />
+
+        {/* 헤더 */}
+        <div class="mb-6">
+          <h1 class="text-2xl font-black text-navy">
+            <i class="fas fa-user-shield text-gold mr-2"></i>관리자 계정 설정
+          </h1>
+          <p class="mt-1 text-sm text-ink/60">
+            Google 로그인을 허용할 이메일을 관리합니다. 이 목록에 포함된 활성 계정만 관리자 페이지에 접근할 수 있습니다.
+          </p>
+        </div>
+
+        {/* 환경변수 Fallback 안내 */}
+        {envFallbackActive && (
+          <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-sm">
+            <p class="font-bold text-amber-800 mb-1">
+              <i class="fas fa-triangle-exclamation mr-1"></i> 환경변수 Fallback 모드
+            </p>
+            <p class="text-amber-700 text-xs leading-relaxed">
+              아직 등록된 활성 관리자가 없어 환경변수 <code class="bg-amber-100 px-1 rounded">ALLOWED_GOOGLE_EMAILS</code>로 접근 중입니다.
+              아래에 관리자 계정을 1개 이상 추가하면 환경변수 fallback은 자동으로 비활성화되고, 이 테이블이 유일한 진실 공급원이 됩니다.
+              {envFallbackList && envFallbackList.length > 0 && (
+                <>
+                  <br />
+                  현재 fallback 이메일: {envFallbackList.map((e) => (
+                    <code class="bg-amber-100 px-1 rounded mr-1">{e}</code>
+                  ))}
+                </>
+              )}
+            </p>
+          </div>
+        )}
+
+        {/* 새 관리자 추가 폼 */}
+        <div class="bg-white rounded-2xl border border-gold/30 shadow-sm p-6 mb-6">
+          <h2 class="text-lg font-black text-navy mb-4">
+            <i class="fas fa-user-plus text-brand mr-2"></i>관리자 추가
+          </h2>
+          <form id="admin-email-add-form" class="grid md:grid-cols-[1.4fr_1fr_1fr_auto] gap-3 items-end">
+            <div>
+              <label class="block text-xs font-bold mb-1 text-navy" for="ae-email">
+                Google 이메일 <span class="text-brand">*</span>
+              </label>
+              <input
+                id="ae-email"
+                name="email"
+                type="email"
+                required
+                placeholder="admin@example.com"
+                class="w-full rounded-xl border border-navy/15 bg-cream-soft px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1 text-navy" for="ae-name">
+                표시 이름 (선택)
+              </label>
+              <input
+                id="ae-name"
+                name="displayName"
+                type="text"
+                placeholder="홍길동 세무사"
+                class="w-full rounded-xl border border-navy/15 bg-cream-soft px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1 text-navy" for="ae-note">
+                메모 (선택)
+              </label>
+              <input
+                id="ae-note"
+                name="note"
+                type="text"
+                placeholder="운영 담당"
+                class="w-full rounded-xl border border-navy/15 bg-cream-soft px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition"
+              />
+            </div>
+            <button
+              type="submit"
+              id="admin-email-add-btn"
+              class="inline-flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark text-white text-sm font-bold px-5 py-2.5 rounded-full transition shadow-md shadow-brand/30 ring-1 ring-gold/50 whitespace-nowrap"
+            >
+              <i class="fas fa-plus"></i> 추가
+            </button>
+          </form>
+          <p id="admin-email-add-msg" class="mt-3 text-sm hidden"></p>
+        </div>
+
+        {/* 관리자 목록 테이블 */}
+        <div class="bg-white rounded-2xl border border-gold/30 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-gold/20 flex items-center justify-between">
+            <h2 class="text-lg font-black text-navy">
+              <i class="fas fa-list text-brand mr-2"></i>등록된 관리자 ({admins.length})
+            </h2>
+          </div>
+          {admins.length === 0 ? (
+            <div class="p-10 text-center text-ink/50">
+              <i class="fas fa-inbox text-4xl text-gold/30 mb-3"></i>
+              <p class="text-sm">아직 등록된 관리자가 없습니다. 위 폼에서 추가해주세요.</p>
+            </div>
+          ) : (
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-navy text-white">
+                  <tr>
+                    <th class="px-4 py-3 text-left font-bold">이메일</th>
+                    <th class="px-4 py-3 text-left font-bold whitespace-nowrap">표시 이름</th>
+                    <th class="px-4 py-3 text-left font-bold whitespace-nowrap">메모</th>
+                    <th class="px-4 py-3 text-center font-bold whitespace-nowrap">상태</th>
+                    <th class="px-4 py-3 text-left font-bold whitespace-nowrap">등록일</th>
+                    <th class="px-4 py-3 text-center font-bold whitespace-nowrap">관리</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-email-tbody">
+                  {admins.map((a, i) => (
+                    <tr
+                      class={`border-t border-gold/20 hover:bg-cream-soft transition ${i % 2 === 1 ? 'bg-cream-soft/50' : ''}`}
+                      data-id={a.id}
+                      data-email={a.email}
+                    >
+                      <td class="px-4 py-3">
+                        <div class="font-medium text-navy flex items-center gap-2">
+                          <i class="fab fa-google text-gold"></i>
+                          <span class="font-mono text-xs sm:text-sm">{a.email}</span>
+                          {userEmail && userEmail.toLowerCase() === a.email.toLowerCase() && (
+                            <span class="inline-flex items-center text-[10px] font-bold text-brand bg-brand-soft px-1.5 py-0.5 rounded-full">
+                              현재 로그인
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td class="px-4 py-3 text-ink/70 whitespace-nowrap">
+                        {a.displayName ?? <span class="text-ink/30">—</span>}
+                      </td>
+                      <td class="px-4 py-3 text-ink/70">
+                        {a.note ?? <span class="text-ink/30">—</span>}
+                      </td>
+                      <td class="px-4 py-3 text-center whitespace-nowrap">
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            class="admin-active-toggle sr-only peer"
+                            data-id={a.id}
+                            checked={a.isActive}
+                          />
+                          <span class="w-10 h-5 bg-gray-300 peer-checked:bg-brand rounded-full relative transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-5"></span>
+                          <span class={`text-xs font-bold ${a.isActive ? 'text-brand' : 'text-ink/40'}`}>
+                            {a.isActive ? '활성' : '중지'}
+                          </span>
+                        </label>
+                      </td>
+                      <td class="px-4 py-3 text-ink/60 text-xs whitespace-nowrap">
+                        {a.createdAt?.slice(0, 10) ?? '—'}
+                      </td>
+                      <td class="px-4 py-3 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          class="admin-email-delete-btn inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700 transition"
+                          data-id={a.id}
+                          data-email={a.email}
+                          disabled={userEmail && userEmail.toLowerCase() === a.email.toLowerCase() ? true : undefined}
+                          title={
+                            userEmail && userEmail.toLowerCase() === a.email.toLowerCase()
+                              ? '현재 로그인한 본인은 삭제할 수 없습니다. 다른 계정으로 로그인 후 삭제하세요.'
+                              : '관리자 삭제'
+                          }
+                        >
+                          <i class="fas fa-trash"></i> 삭제
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* 안내 */}
+        <div class="mt-6 bg-cream-soft rounded-2xl p-5 text-sm text-ink/70 border border-gold/20">
+          <p class="font-bold text-navy mb-2">
+            <i class="fas fa-info-circle text-gold mr-1"></i>안내
+          </p>
+          <ul class="space-y-1.5 list-disc list-inside leading-relaxed">
+            <li>등록된 이메일로 Google 로그인한 사용자만 관리자 페이지에 접근할 수 있습니다.</li>
+            <li>'상태' 토글을 끄면 해당 계정의 신규 로그인이 즉시 차단됩니다. (이미 발급된 세션은 만료 시 재로그인 거부)</li>
+            <li>현재 로그인한 본인은 안전상 삭제할 수 없습니다. (다른 계정으로 로그인 후 삭제하세요)</li>
+            <li>등록 가능한 활성 관리자가 모두 사라지면 환경변수 ALLOWED_GOOGLE_EMAILS로 fallback 됩니다.</li>
+          </ul>
+        </div>
+      </div>
+    </main>
+    <SiteFooter />
+    <CommonScript />
+    <script src="/static/admin.js"></script>
+  </>
+)

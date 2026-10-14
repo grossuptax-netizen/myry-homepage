@@ -4,7 +4,7 @@ import type { HeadData } from './renderer'
 import { Home } from './pages/home'
 import { ColumnListPage } from './pages/column-list'
 import { ColumnDetailPage, buildColumnHead } from './pages/column-detail'
-import { AdminLoginPage, AdminColumnListPage, AdminColumnFormPage } from './pages/admin'
+import { AdminLoginPage, AdminColumnListPage, AdminColumnFormPage, AdminSettingsPage } from './pages/admin'
 import { TaxCalculatorPage } from './pages/tax-calculator'
 import { CATEGORIES, getCategory } from './lib/columns'
 import type { Column } from './lib/columns'
@@ -22,6 +22,10 @@ import {
   isSlugTakenDb,
   seedDatabase,
   type ColumnInput,
+  listAdminEmails,
+  addAdminEmail,
+  updateAdminEmail,
+  deleteAdminEmail,
 } from './lib/db'
 import {
   createSessionToken,
@@ -57,41 +61,33 @@ function getBaseUrl(c: any): string {
   return `${proto}://${host}`
 }
 
-// ===== 헬퍼: 관리자 인증 검사 (API용) =====
-// Authorization 헤더 또는 쿠키에서 Google OAuth 세션 토큰 검증
-// 토큰은 Google 로그인 후 서버에서 발급 (HMAC 서명 포함)
-async function checkAdminAuth(c: any): Promise<boolean> {
-  // 1. Authorization Bearer 헤더 확인
+// ===== 헬퍼: 관리자 인증 검사 (API + 페이지 통합, 비동기) =====
+// 1) Authorization Bearer 헤더 또는 쿠키에서 세션 토큰 검증(HMAC)
+// 2) D1의 admin_emails 테이블에서 '현재도 활성 관리자인지' 재확인
+//    → 설정 UI에서 비활성화하면 다음 요청부터 즉시 차단
+async function checkAdminAuth(c: any): Promise<{ authed: boolean; email?: string }> {
+  const env = c.env as AppEnv
+  let token: string | null = null
+
   const auth = c.req.header('Authorization')
   if (auth && auth.startsWith('Bearer ')) {
-    const token = auth.slice(7)
-    const result = verifySessionToken(token, c.env as AppEnv)
-    if (result.valid) return true
+    token = auth.slice(7)
+  } else {
+    const cookieHeader = c.req.header('cookie') || ''
+    const match = cookieHeader.match(/admin_session=([^;]+)/)
+    if (match) token = decodeURIComponent(match[1])
   }
-  // 2. 쿠키에서 admin_session 토큰 확인 (fetch 시 자동 전송)
-  const cookieHeader = c.req.header('cookie') || ''
-  const match = cookieHeader.match(/admin_session=([^;]+)/)
-  if (match) {
-    const token = decodeURIComponent(match[1])
-    const result = verifySessionToken(token, c.env as AppEnv)
-    if (result.valid) return true
-  }
-  return false
-}
 
-// ===== 헬퍼: 페이지 라우트용 쿠키 기반 인증 검사 =====
-// 관리자 페이지 렌더링 시 쿠키에서 토큰을 읽어 인증 확인
-function checkAdminAuthCookie(c: any): { authed: boolean; email?: string } {
-  // 쿠키에서 admin_session 토큰 추출
-  const cookieHeader = c.req.header('cookie') || ''
-  const match = cookieHeader.match(/admin_session=([^;]+)/)
-  if (!match) return { authed: false }
-  const token = decodeURIComponent(match[1])
-  const result = verifySessionToken(token, c.env as AppEnv)
-  if (result.valid) {
-    return { authed: true, email: result.email }
-  }
-  return { authed: false }
+  if (!token) return { authed: false }
+
+  const result = await verifySessionToken(token, env)
+  if (!result.valid || !result.email) return { authed: false }
+
+  // 세션 토큰은 유효하지만, 그 사이 관리자 권한이 회수됐을 수 있으니 재확인
+  const stillAllowed = await isAllowedEmail(result.email, env)
+  if (!stillAllowed) return { authed: false }
+
+  return { authed: true, email: result.email }
 }
 
 // ===== 메인 랜딩 페이지 =====
@@ -231,9 +227,9 @@ app.get('/tax-calculator', (c) => {
 // ===== 관리자 페이지 라우트 =====
 
 // 관리자 로그인 페이지 — Google OAuth 설정 여부를 페이지에 전달
-app.get('/admin/column/login', (c) => {
+app.get('/admin/column/login', async (c) => {
   // 이미 인증된 경우 관리자 목록으로 리다이렉트
-  const { authed } = checkAdminAuthCookie(c)
+  const { authed } = await checkAdminAuth(c)
   if (authed) {
     return c.redirect('/admin/column')
   }
@@ -246,9 +242,9 @@ app.get('/admin/column/login', (c) => {
   return c.render(<AdminLoginPage oauthReady={oauthReady} />)
 })
 
-// 관리자 칼럼 목록 — 쿠키 인증 필요
+// 관리자 칼럼 목록 — 세션 + D1 활성 관리자 재확인
 app.get('/admin/column', async (c) => {
-  const { authed, email } = checkAdminAuthCookie(c)
+  const { authed, email } = await checkAdminAuth(c)
   if (!authed) {
     return c.redirect('/admin/column/login')
   }
@@ -261,9 +257,9 @@ app.get('/admin/column', async (c) => {
   return c.render(<AdminColumnListPage columns={columns} userEmail={email} />)
 })
 
-// 관리자 칼럼 작성 폼 — 쿠키 인증 필요
-app.get('/admin/column/new', (c) => {
-  const { authed } = checkAdminAuthCookie(c)
+// 관리자 칼럼 작성 폼
+app.get('/admin/column/new', async (c) => {
+  const { authed } = await checkAdminAuth(c)
   if (!authed) {
     return c.redirect('/admin/column/login')
   }
@@ -275,9 +271,9 @@ app.get('/admin/column/new', (c) => {
   return c.render(<AdminColumnFormPage mode="new" />)
 })
 
-// 관리자 칼럼 수정 폼 — 쿠키 인증 필요
+// 관리자 칼럼 수정 폼
 app.get('/admin/column/edit/:id', async (c) => {
-  const { authed } = checkAdminAuthCookie(c)
+  const { authed } = await checkAdminAuth(c)
   if (!authed) {
     return c.redirect('/admin/column/login')
   }
@@ -289,6 +285,35 @@ app.get('/admin/column/edit/:id', async (c) => {
     robots: 'noindex, nofollow',
   } as HeadData)
   return c.render(<AdminColumnFormPage mode="edit" column={column} />)
+})
+
+// ===== 관리자 계정 설정 페이지 =====
+app.get('/admin/settings', async (c) => {
+  const { authed, email } = await checkAdminAuth(c)
+  if (!authed) {
+    return c.redirect('/admin/column/login')
+  }
+  const admins = await listAdminEmails(c.env.DB)
+  // 환경변수 fallback 활성화 여부 (활성 관리자가 0명일 때 env ALLOWED_GOOGLE_EMAILS로 접근 중)
+  const envFallbackActive = admins.filter((a) => a.isActive).length === 0
+  const envFallbackList =
+    (c.env.ALLOWED_GOOGLE_EMAILS || '')
+      .split(/[,\s]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+  c.set('head', {
+    title: '관리자 계정 설정 | 명륜세무회계',
+    description: '관리자 이메일 관리 페이지',
+    robots: 'noindex, nofollow',
+  } as HeadData)
+  return c.render(
+    <AdminSettingsPage
+      admins={admins}
+      userEmail={email}
+      envFallbackActive={envFallbackActive}
+      envFallbackList={envFallbackList}
+    />
+  )
 })
 
 // ===== Google OAuth 인증 라우트 =====
@@ -323,19 +348,21 @@ app.get('/api/auth/google/callback', async (c) => {
     return c.redirect(`/admin/column/login?error=${msg}`)
   }
 
-  // 허용된 이메일인지 확인
-  if (!isAllowedEmail(result.email, c.env as AppEnv)) {
-    const msg = encodeURIComponent('허용되지 않은 Google 계정입니다.')
+  // 허용된 이메일인지 확인 (D1 + env fallback, 비동기)
+  const allowed = await isAllowedEmail(result.email, c.env as AppEnv)
+  if (!allowed) {
+    const msg = encodeURIComponent('접근 권한이 없습니다. 등록된 관리자 계정이 아닙니다.')
     return c.redirect(`/admin/column/login?error=${msg}`)
   }
 
-  // 세션 토큰 발급
-  const token = createSessionToken(result.email, c.env as AppEnv)
+  // 세션 토큰 발급 (비동기 HMAC)
+  const token = await createSessionToken(result.email, c.env as AppEnv)
 
-  // 쿠키 설정 (HttpOnly, Secure, 4시간) + 관리자 페이지로 리다이렉트
+  // 쿠키 설정 (HttpOnly, Secure, 7일) + 관리자 페이지로 리다이렉트
+  const SEVEN_DAYS = 7 * 24 * 60 * 60
   c.header(
     'Set-Cookie',
-    `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=14400; SameSite=Lax${redirectBase.startsWith('https://') ? '; Secure' : ''}`
+    `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${SEVEN_DAYS}; SameSite=Lax${redirectBase.startsWith('https://') ? '; Secure' : ''}`
   )
   return c.redirect('/admin/column')
 })
@@ -361,7 +388,8 @@ app.get('/api/auth/logout', (c) => {
 
 // 관리자 칼럼 목록 조회 API
 app.get('/api/admin/columns', async (c) => {
-  if (!await checkAdminAuth(c)) {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
     return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
   }
   const columns = await getAllColumnsForAdmin(c.env.DB)
@@ -370,7 +398,8 @@ app.get('/api/admin/columns', async (c) => {
 
 // 관리자 칼럼 생성 API
 app.post('/api/admin/column', async (c) => {
-  if (!await checkAdminAuth(c)) {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
     return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
   }
   try {
@@ -413,7 +442,8 @@ app.post('/api/admin/column', async (c) => {
 
 // 관리자 칼럼 수정 API
 app.put('/api/admin/column/:id', async (c) => {
-  if (!await checkAdminAuth(c)) {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
     return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
   }
   try {
@@ -458,7 +488,8 @@ app.put('/api/admin/column/:id', async (c) => {
 
 // 관리자 칼럼 삭제 API
 app.delete('/api/admin/column/:id', async (c) => {
-  if (!await checkAdminAuth(c)) {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
     return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
   }
   try {
@@ -479,11 +510,128 @@ app.delete('/api/admin/column/:id', async (c) => {
   }
 })
 
+// ===== 관리자 이메일(허용 목록) API =====
+
+// 전체 관리자 이메일 목록 조회
+app.get('/api/admin/admins', async (c) => {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
+    return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
+  }
+  const admins = await listAdminEmails(c.env.DB)
+  return c.json({ ok: true, admins, currentEmail: auth.email })
+})
+
+// 관리자 이메일 추가
+app.post('/api/admin/admins', async (c) => {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
+    return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
+  }
+  try {
+    const body = await c.req.json<{ email?: string; displayName?: string; note?: string }>()
+    if (!body?.email) {
+      return c.json({ ok: false, error: '이메일을 입력하세요.' }, 400)
+    }
+    const result = await addAdminEmail(c.env.DB, {
+      email: body.email,
+      displayName: body.displayName,
+      note: body.note,
+    })
+    if (!result.ok) {
+      return c.json({ ok: false, error: result.error }, 400)
+    }
+    return c.json({ ok: true, id: result.id, message: '관리자가 추가되었습니다.' })
+  } catch (e: any) {
+    console.error('add admin error:', e)
+    return c.json({ ok: false, error: '요청 형식이 올바르지 않습니다.' }, 400)
+  }
+})
+
+// 관리자 이메일 수정 (활성 토글, 이름/메모 변경)
+app.patch('/api/admin/admins/:id', async (c) => {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
+    return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
+  }
+  try {
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) {
+      return c.json({ ok: false, error: '잘못된 ID입니다.' }, 400)
+    }
+    const body = await c.req.json<{ displayName?: string | null; note?: string | null; isActive?: boolean }>()
+
+    // 안전장치: 본인을 비활성화하여 자신을 잠가버리는 상황 방지
+    if (body.isActive === false) {
+      const all = await listAdminEmails(c.env.DB)
+      const target = all.find((a) => a.id === id)
+      if (target && target.email.toLowerCase() === (auth.email || '').toLowerCase()) {
+        return c.json(
+          { ok: false, error: '현재 로그인한 본인 계정은 비활성화할 수 없습니다.' },
+          400
+        )
+      }
+      // 추가 안전장치: 활성 관리자가 본인 1명뿐일 때 마지막 활성 계정을 비활성화하면 잠김
+      const activeOthers = all.filter((a) => a.isActive && a.id !== id)
+      if (activeOthers.length === 0) {
+        return c.json(
+          { ok: false, error: '마지막 활성 관리자는 비활성화할 수 없습니다. (잠김 방지)' },
+          400
+        )
+      }
+    }
+
+    const result = await updateAdminEmail(c.env.DB, id, body)
+    if (!result.ok) {
+      return c.json({ ok: false, error: result.error }, 400)
+    }
+    return c.json({ ok: true, message: '수정되었습니다.' })
+  } catch (e: any) {
+    console.error('update admin error:', e)
+    return c.json({ ok: false, error: '요청 형식이 올바르지 않습니다.' }, 400)
+  }
+})
+
+// 관리자 이메일 삭제
+app.delete('/api/admin/admins/:id', async (c) => {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
+    return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
+  }
+  try {
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) {
+      return c.json({ ok: false, error: '잘못된 ID입니다.' }, 400)
+    }
+    // 안전장치: 본인 삭제 금지
+    const all = await listAdminEmails(c.env.DB)
+    const target = all.find((a) => a.id === id)
+    if (!target) {
+      return c.json({ ok: false, error: '존재하지 않는 관리자입니다.' }, 404)
+    }
+    if (target.email.toLowerCase() === (auth.email || '').toLowerCase()) {
+      return c.json(
+        { ok: false, error: '현재 로그인한 본인 계정은 삭제할 수 없습니다. 다른 관리자 계정으로 로그인 후 삭제해주세요.' },
+        400
+      )
+    }
+    const result = await deleteAdminEmail(c.env.DB, id)
+    if (!result.ok) {
+      return c.json({ ok: false, error: result.error }, 500)
+    }
+    return c.json({ ok: true, message: '삭제되었습니다.' })
+  } catch (e: any) {
+    console.error('delete admin error:', e)
+    return c.json({ ok: false, error: '삭제 중 오류가 발생했습니다.' }, 500)
+  }
+})
+
 // ===== 시드 엔드포인트 =====
 // D1이 비어있을 때 더미 데이터 18개 삽입
 // 인증 필요 (관리자만 실행 가능)
 app.post('/api/admin/seed', async (c) => {
-  if (!await checkAdminAuth(c)) {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
     return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
   }
   try {
@@ -506,6 +654,8 @@ app.get('/robots.txt', (c) => {
   const robots = `User-agent: *
 Allow: /
 Disallow: /admin/
+Disallow: /api/admin/
+Disallow: /api/auth/
 
 Sitemap: ${baseUrl}/sitemap.xml
 Sitemap: ${baseUrl}/sitemap-columns.xml

@@ -343,4 +343,155 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     })
   }
+
+  /* ===== 관리자 계정 설정 페이지 ===== */
+
+  // 공통: 메시지 표시 유틸
+  function showSettingsMsg(el, type, text) {
+    if (!el) return
+    el.textContent = text
+    el.className =
+      'mt-3 text-sm ' +
+      (type === 'error'
+        ? 'text-red-600'
+        : type === 'success'
+        ? 'text-green-700'
+        : 'text-ink/70')
+    el.classList.remove('hidden')
+  }
+
+  // 1. 관리자 추가 폼
+  const addForm = document.getElementById('admin-email-add-form')
+  if (addForm) {
+    const addMsg = document.getElementById('admin-email-add-msg')
+    const addBtn = document.getElementById('admin-email-add-btn')
+
+    addForm.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const payload = {
+        email: (addForm.querySelector('[name="email"]') || {}).value || '',
+        displayName: (addForm.querySelector('[name="displayName"]') || {}).value || '',
+        note: (addForm.querySelector('[name="note"]') || {}).value || '',
+      }
+      if (!payload.email.trim()) {
+        showSettingsMsg(addMsg, 'error', '이메일을 입력하세요.')
+        return
+      }
+
+      const originalHtml = addBtn ? addBtn.innerHTML : ''
+      if (addBtn) {
+        addBtn.disabled = true
+        addBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 추가 중...'
+      }
+
+      try {
+        const res = await fetch('/api/admin/admins', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json()
+        if (res.ok && data.ok) {
+          showSettingsMsg(addMsg, 'success', data.message || '추가되었습니다.')
+          // 1초 후 새로고침하여 목록 반영
+          setTimeout(() => window.location.reload(), 600)
+        } else {
+          if (res.status === 401) {
+            window.location.href = '/admin/column/login'
+            return
+          }
+          showSettingsMsg(addMsg, 'error', data.error || '추가에 실패했습니다.')
+          if (addBtn) {
+            addBtn.disabled = false
+            addBtn.innerHTML = originalHtml
+          }
+        }
+      } catch (err) {
+        showSettingsMsg(addMsg, 'error', '서버 연결에 실패했습니다.')
+        if (addBtn) {
+          addBtn.disabled = false
+          addBtn.innerHTML = originalHtml
+        }
+      }
+    })
+  }
+
+  // 2. 활성 상태 토글
+  const activeToggles = document.querySelectorAll('.admin-active-toggle')
+  activeToggles.forEach((toggle) => {
+    toggle.addEventListener('change', async () => {
+      const id = toggle.getAttribute('data-id')
+      const isActive = toggle.checked
+      try {
+        const res = await fetch('/api/admin/admins/' + id, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ isActive }),
+        })
+        const data = await res.json()
+        if (res.ok && data.ok) {
+          // 성공: 라벨만 업데이트
+          const row = toggle.closest('tr')
+          const label = row ? row.querySelector('label span:last-child') : null
+          if (label) {
+            label.textContent = isActive ? '활성' : '중지'
+            label.className = 'text-xs font-bold ' + (isActive ? 'text-brand' : 'text-ink/40')
+          }
+        } else {
+          // 실패 시 토글 롤백
+          toggle.checked = !isActive
+          if (res.status === 401) {
+            window.location.href = '/admin/column/login'
+            return
+          }
+          alert(data.error || '상태 변경에 실패했습니다.')
+        }
+      } catch (err) {
+        toggle.checked = !isActive
+        alert('서버 연결에 실패했습니다.')
+      }
+    })
+  })
+
+  // 3. 관리자 삭제
+  const deleteAdminBtns = document.querySelectorAll('.admin-email-delete-btn')
+  deleteAdminBtns.forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (btn.disabled) return
+      const id = btn.getAttribute('data-id')
+      const email = btn.getAttribute('data-email')
+      if (!confirm('정말로 이 관리자를 삭제하시겠습니까?\n\n이메일: ' + email))
+        return
+
+      const originalHtml = btn.innerHTML
+      btn.disabled = true
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 삭제 중...'
+
+      try {
+        const res = await fetch('/api/admin/admins/' + id, {
+          method: 'DELETE',
+          credentials: 'same-origin',
+        })
+        const data = await res.json()
+        if (res.ok && data.ok) {
+          // 해당 행 제거 후 새로고침(fallback 상태 재계산 위해)
+          window.location.reload()
+        } else {
+          if (res.status === 401) {
+            window.location.href = '/admin/column/login'
+            return
+          }
+          alert(data.error || '삭제에 실패했습니다.')
+          btn.disabled = false
+          btn.innerHTML = originalHtml
+        }
+      } catch (err) {
+        alert('서버 연결에 실패했습니다.')
+        btn.disabled = false
+        btn.innerHTML = originalHtml
+      }
+    })
+  })
 })
