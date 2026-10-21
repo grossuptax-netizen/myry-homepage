@@ -364,6 +364,10 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
               <label class="block text-sm font-bold mb-2 text-navy" for="f-thumbnail">
                 대표 썸네일 이미지 <span class="text-brand">*</span>
               </label>
+              <p class="text-xs text-ink/50 mb-3">
+                <i class="fas fa-cloud-arrow-up text-gold mr-1"></i>
+                파일 선택 시 Cloudinary CDN에 자동 업로드됩니다. (최대 10MB)
+              </p>
               <div class="flex flex-col sm:flex-row gap-4">
                 <div class="shrink-0">
                   <div id="thumbnail-preview" class="w-48 aspect-[16/10] rounded-xl border border-gold/30 bg-cream-soft overflow-hidden flex items-center justify-center">

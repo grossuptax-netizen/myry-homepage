@@ -1,13 +1,65 @@
 // 관리자 페이지 스크립트
-// Google OAuth 세션 (쿠키 기반) + D1 CRUD API 연동
+// Google OAuth 세션 (쿠키 기반) + D1 CRUD API 연동 + Cloudinary 이미지 업로드
 // - 로그인: Google OAuth → /api/auth/google → 콜백 → 쿠키 설정
 // - 칼럼 저장: POST /api/admin/column (신규) / PUT /api/admin/column/:id (수정)
 // - 칼럼 삭제: DELETE /api/admin/column/:id
 // - 시드: POST /api/admin/seed
 // - 로그아웃: POST /api/auth/logout
+// - 이미지 업로드: Cloudinary unsigned upload (썸네일 + 본문 삽입 이미지)
 //
 // 인증은 서버 쿠키(admin_session)로 처리되므로,
 // 모든 fetch 요청에 credentials: 'same-origin'을 포함하여 쿠키 자동 전송.
+
+/* ============================================================================
+ * Cloudinary 설정 (unsigned upload - 공개 preset 사용)
+ * ============================================================================
+ * - Cloud name: vxqu6qlr
+ * - Upload preset: jung6tax_upload (unsigned, 관리자 전용 폼에서만 호출)
+ * - 업로드 후 반환되는 secure_url 만 D1 columns 테이블에 저장
+ *   → DB 용량 절감, CDN 가속, 리사이즈/최적화 자동
+ */
+const CLOUDINARY_CLOUD_NAME = 'vxqu6qlr'
+const CLOUDINARY_UPLOAD_PRESET = 'jung6tax_upload'
+const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`
+
+/**
+ * 이미지 파일을 Cloudinary에 업로드하고 secure_url 반환
+ * @param {File} file - 업로드할 이미지 파일
+ * @returns {Promise<string>} secure_url
+ * @throws {Error} 업로드 실패 시
+ */
+async function uploadToCloudinary(file) {
+  if (!file) throw new Error('파일이 없습니다.')
+  if (!file.type || !file.type.startsWith('image/')) {
+    throw new Error('이미지 파일만 업로드 가능합니다.')
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
+
+  const res = await fetch(CLOUDINARY_UPLOAD_URL, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!res.ok) {
+    let msg = `업로드 실패 (HTTP ${res.status})`
+    try {
+      const err = await res.json()
+      if (err && err.error && err.error.message) {
+        msg = err.error.message
+      }
+    } catch (_) {}
+    throw new Error(msg)
+  }
+
+  const data = await res.json()
+  if (!data.secure_url) {
+    throw new Error('업로드 응답에 URL이 없습니다.')
+  }
+  return data.secure_url
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   /* ===== 로그인 페이지 ===== */
@@ -142,26 +194,40 @@ document.addEventListener('DOMContentLoaded', () => {
       })
     })
 
-    // 이미지 삽입
+    // 이미지 삽입 (Cloudinary 업로드)
     const insertImageBtn = document.getElementById('insert-image-btn')
     const imageInput = document.getElementById('content-image-input')
     if (insertImageBtn && imageInput) {
       insertImageBtn.addEventListener('click', () => imageInput.click())
-      imageInput.addEventListener('change', (e) => {
+      imageInput.addEventListener('change', async (e) => {
         const file = e.target.files[0]
         if (!file) return
-        const reader = new FileReader()
-        reader.onload = (ev) => {
+        // 파일 크기 사전 검증 (10MB 제한)
+        if (file.size > 10 * 1024 * 1024) {
+          alert('이미지 크기는 10MB 이하여야 합니다.')
+          e.target.value = ''
+          return
+        }
+        // 업로드 중 UI
+        const originalHtml = insertImageBtn.innerHTML
+        insertImageBtn.disabled = true
+        insertImageBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'
+        try {
+          const url = await uploadToCloudinary(file)
           editor.focus()
-          // 정육점 키워드가 포함된 alt 텍스트 자동 생성
           const altText = `정육점 세무 관련 이미지 - ${file.name.replace(/\.[^.]+$/, '')}`
           document.execCommand(
             'insertHTML',
             false,
-            `<img src="${ev.target.result}" alt="${altText}" style="max-width:100%;border-radius:0.75rem;margin:1.5rem 0;" />`
+            `<img src="${url}" alt="${altText}" style="max-width:100%;border-radius:0.75rem;margin:1.5rem 0;" />`
           )
+        } catch (err) {
+          alert('이미지 업로드에 실패했습니다: ' + (err.message || '서버 오류'))
+        } finally {
+          insertImageBtn.disabled = false
+          insertImageBtn.innerHTML = originalHtml
+          e.target.value = '' // 같은 파일 재선택 가능하도록 초기화
         }
-        reader.readAsDataURL(file)
       })
     }
 
@@ -193,20 +259,46 @@ document.addEventListener('DOMContentLoaded', () => {
     editor.addEventListener('blur', syncContent)
   }
 
-  /* ===== 썸네일 이미지 미리보기 + dataURL 변환 ===== */
+  /* ===== 썸네일 이미지 — Cloudinary 업로드 ===== */
+  // 변경 전: Base64 dataURL로 변환하여 D1에 직접 저장 (DB 용량 과다 소비)
+  // 변경 후: Cloudinary에 업로드 후 secure_url만 D1에 저장 (DB 효율 ↑)
   const thumbInput = document.getElementById('f-thumbnail')
   const thumbPreview = document.getElementById('thumbnail-preview')
-  let thumbnailDataUrl = '' // 새로 선택한 썸네일의 dataURL
+  let thumbnailDataUrl = '' // 업로드 완료 후 Cloudinary secure_url 저장
   if (thumbInput && thumbPreview) {
-    thumbInput.addEventListener('change', (e) => {
+    thumbInput.addEventListener('change', async (e) => {
       const file = e.target.files[0]
       if (!file) return
+      // 파일 크기 사전 검증 (10MB 제한)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('이미지 크기는 10MB 이하여야 합니다.')
+        e.target.value = ''
+        return
+      }
+
+      // 1) 로컬 미리보기 즉시 표시 (업로드 중 사용자 피드백)
       const reader = new FileReader()
       reader.onload = (ev) => {
-        thumbnailDataUrl = ev.target.result
-        thumbPreview.innerHTML = `<img src="${ev.target.result}" alt="썸네일 미리보기" style="width:100%;height:100%;object-fit:cover;" />`
+        thumbPreview.innerHTML =
+          `<div style="position:relative;width:100%;height:100%;">` +
+          `<img src="${ev.target.result}" alt="썸네일 미리보기" style="width:100%;height:100%;object-fit:cover;opacity:0.5;" />` +
+          `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#8B1A1A;font-weight:bold;font-size:0.75rem;background:rgba(245,240,235,0.4);">` +
+          `<i class="fas fa-cloud-arrow-up fa-spin mr-1"></i> 업로드 중...` +
+          `</div></div>`
       }
       reader.readAsDataURL(file)
+
+      // 2) Cloudinary 업로드
+      try {
+        const url = await uploadToCloudinary(file)
+        thumbnailDataUrl = url // Cloudinary secure_url
+        thumbPreview.innerHTML = `<img src="${url}" alt="썸네일 미리보기" style="width:100%;height:100%;object-fit:cover;" />`
+      } catch (err) {
+        alert('썸네일 업로드에 실패했습니다: ' + (err.message || '서버 오류'))
+        thumbPreview.innerHTML = `<i class="fas fa-image text-3xl text-gold/40"></i>`
+        thumbnailDataUrl = ''
+        e.target.value = ''
+      }
     })
   }
 
@@ -260,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const editId = idInput ? idInput.value.trim() : ''
       const isEdit = editId !== ''
 
-      // 썸네일: 새 파일 선택 시 dataURL, 아니면 기존 thumbnail_existing 값
+      // 썸네일: 새 파일 업로드 시 Cloudinary secure_url, 아니면 기존 thumbnail_existing 값(이미 Cloudinary URL)
       let thumbnail = thumbnailDataUrl
       if (!thumbnail) {
         const existingInput = columnForm.querySelector('[name="thumbnail_existing"]')

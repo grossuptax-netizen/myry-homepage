@@ -90,9 +90,25 @@ async function checkAdminAuth(c: any): Promise<{ authed: boolean; email?: string
   return { authed: true, email: result.email }
 }
 
+// ===== 헬퍼: 공개 페이지용 '관리자 로그인 여부만' 가벼운 체크 (비동기) =====
+// 공개 페이지(홈, 칼럼 목록/상세 등)에서 '관리자 페이지' 버튼을 노출할지 결정하기 위한 체크.
+// D1 조회 없이 쿠키 토큰의 HMAC 서명만 검증 (성능 우선, UI 노출용이므로 안전).
+// 실제 관리자 API/페이지 접근 제어는 checkAdminAuth(D1 재확인 포함)이 담당.
+async function checkAdminAuthCookie(c: any): Promise<{ authed: boolean; email?: string }> {
+  const cookieHeader = c.req.header('cookie') || ''
+  const match = cookieHeader.match(/admin_session=([^;]+)/)
+  if (!match) return { authed: false }
+  const token = decodeURIComponent(match[1])
+  const result = await verifySessionToken(token, c.env as AppEnv)
+  if (result.valid && result.email) {
+    return { authed: true, email: result.email }
+  }
+  return { authed: false }
+}
+
 // ===== 메인 랜딩 페이지 =====
-app.get('/', (c) => {
-  const { authed } = checkAdminAuthCookie(c)
+app.get('/', async (c) => {
+  const { authed } = await checkAdminAuthCookie(c)
   return c.render(<Home isAdmin={authed} />)
 })
 
@@ -156,7 +172,7 @@ app.get('/column', async (c) => {
       '정육점·축산물 세무 전문가의 인사이트 칼럼. 의제매입세액공제부터 정부지원금까지.',
     canonical: `${baseUrl}/column`,
   } as HeadData)
-  const { authed } = checkAdminAuthCookie(c)
+  const { authed } = await checkAdminAuthCookie(c)
   return c.render(<ColumnListPage activeCategory={undefined} columns={columns} isAdmin={authed} />)
 })
 
@@ -178,7 +194,7 @@ app.get('/column/:categorySlug', async (c) => {
     ogDescription: category.desc,
     canonical: `${baseUrl}/column/${categorySlug}`,
   } as HeadData)
-  const { authed } = checkAdminAuthCookie(c)
+  const { authed } = await checkAdminAuthCookie(c)
   return c.render(<ColumnListPage activeCategory={categorySlug} columns={columns} isAdmin={authed} />)
 })
 
@@ -194,7 +210,7 @@ app.get('/column/:categorySlug/:columnSlug', async (c) => {
   if (!category || !column) {
     // 404 페이지
     c.set('head', { title: '칼럼을 찾을 수 없습니다 | 명륜세무회계', robots: 'noindex' } as HeadData)
-    const { authed } = checkAdminAuthCookie(c)
+    const { authed } = await checkAdminAuthCookie(c)
     return c.render(<ColumnDetailPage column={undefined} related={[]} baseUrl={baseUrl} isAdmin={authed} />)
   }
 
@@ -208,19 +224,19 @@ app.get('/column/:categorySlug/:columnSlug', async (c) => {
   // 조회수 증가 (비동기, 응답 지연 방지)
   c.executionCtx.waitUntil(incrementViewsDb(c.env.DB, column.id))
 
-  const { authed } = checkAdminAuthCookie(c)
+  const { authed } = await checkAdminAuthCookie(c)
   return c.render(<ColumnDetailPage column={column} related={related} baseUrl={baseUrl} isAdmin={authed} />)
 })
 
 // ===== 세금계산기 페이지 (플레이스홀더 - 기능은 추후 구현) =====
-app.get('/tax-calculator', (c) => {
+app.get('/tax-calculator', async (c) => {
   c.set('head', {
     title: '세금계산기 (준비 중) | 명륜세무회계',
     description:
       '정육점·축산물 세무 전용 세금계산기. 현재 준비 중이며, 오픈 시 의제매입세액공제·부가세·종합소득세 시뮬레이션을 제공합니다.',
     robots: 'noindex',
   } as HeadData)
-  const { authed } = checkAdminAuthCookie(c)
+  const { authed } = await checkAdminAuthCookie(c)
   return c.render(<TaxCalculatorPage isAdmin={authed} />)
 })
 
