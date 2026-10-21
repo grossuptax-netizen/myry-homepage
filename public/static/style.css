@@ -265,3 +265,7 @@ section[id] {
 .format-btn:active {
   transform: scale(0.95);
 }
+
+/* 붙여넣은 이미지 Cloudinary 이동 상태 (에디터 전용) */
+.prose-admin img[data-upload-state="uploading"] { opacity: 0.4; outline: 2px dashed #C9A84C; outline-offset: 2px; }
+.prose-admin img[data-upload-state="failed"] { outline: 3px solid #dc2626; outline-offset: 2px; }

@@ -9,6 +9,7 @@ export interface HeadData {
   ogTitle?: string
   ogDescription?: string
   ogImage?: string
+  ogImageAlt?: string // og:image:alt (공유 이미지 설명)
   ogType?: string // og:type (기본값: website, 칼럼 상세: article)
   canonical?: string
   robots?: string
@@ -75,7 +76,11 @@ export const renderer = jsxRenderer(({ children }) => {
   const description = head.description ?? DEFAULT_DESCRIPTION
   const ogTitle = head.ogTitle ?? title
   const ogDescription = head.ogDescription ?? description
-  const ogImage = head.ogImage ?? '/static/favicon-192.png'
+  // og:image 는 절대 주소여야 카카오톡·페이스북이 읽을 수 있음
+  const origin = `${c.req.header('x-forwarded-proto') || 'https'}://${
+    c.req.header('x-forwarded-host') || c.req.header('host') || 'jung6tax.com'
+  }`
+  const ogImage = head.ogImage ?? `${origin}/static/favicon-192.png`
   const ogType = head.ogType ?? 'website'
 
   return (
@@ -89,9 +94,12 @@ export const renderer = jsxRenderer(({ children }) => {
         <meta name="description" content={description} />
         {/* Open Graph 태그 (카카오톡, 페이스북 공유용) */}
         <meta property="og:type" content={ogType} />
+        <meta property="og:site_name" content="명륜세무회계" />
         <meta property="og:title" content={ogTitle} />
         <meta property="og:description" content={ogDescription} />
         <meta property="og:image" content={ogImage} />
+        {head.ogImageAlt && <meta property="og:image:alt" content={head.ogImageAlt} />}
+        {head.canonical && <meta property="og:url" content={head.canonical} />}
         <meta property="og:locale" content="ko_KR" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={ogTitle} />

@@ -1,5 +1,5 @@
 import type { FC } from 'hono/jsx'
-import { CATEGORIES, getCategoryLabel } from '../lib/columns'
+import { CATEGORIES, getCategoryLabel, getDisplayThumbnail } from '../lib/columns'
 import type { Column } from '../lib/columns'
 import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
 
@@ -14,8 +14,8 @@ const ColumnCard: FC<{ column: Column }> = ({ column }) => {
         {/* 썸네일 이미지 - lazy loading 적용 */}
         <div class="aspect-[16/10] overflow-hidden bg-cream-soft">
           <img
-            src={column.thumbnail}
-            alt={column.thumbnailAlt}
+            src={getDisplayThumbnail(column)}
+            alt={column.thumbnailAlt || column.title}
             loading="lazy"
             decoding="async"
             width="640"
@@ -100,6 +100,15 @@ export const ColumnListPage: FC<ColumnListPageProps> = ({ activeCategory, column
               <br class="hidden md:block" />
               정육점·축산물 세무에 특화된 실무 노하우를 공유합니다.
             </p>
+            {/* 관리자 전용: 글쓰기 버튼 (일반 방문자에게는 HTML 자체가 출력되지 않음) */}
+            {isAdmin && (
+              <a
+                href="/admin/column/new"
+                class="mt-6 inline-flex items-center gap-2 bg-navy hover:bg-navy-dark text-white text-sm font-bold px-5 py-2.5 rounded-full transition shadow-md shadow-navy/30 ring-1 ring-gold/50"
+              >
+                <i class="fas fa-pen"></i> 글쓰기
+              </a>
+            )}
           </div>
         </section>
 

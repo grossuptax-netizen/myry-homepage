@@ -6,7 +6,7 @@ import { ColumnListPage } from './pages/column-list'
 import { ColumnDetailPage, buildColumnHead } from './pages/column-detail'
 import { AdminLoginPage, AdminColumnListPage, AdminColumnFormPage, AdminSettingsPage } from './pages/admin'
 import { TaxCalculatorPage } from './pages/tax-calculator'
-import { CATEGORIES, getCategory } from './lib/columns'
+import { CATEGORIES, getCategory, getModifiedDate } from './lib/columns'
 import type { Column } from './lib/columns'
 import {
   getAllColumns,
@@ -35,6 +35,11 @@ import {
   isAllowedEmail,
   isOAuthConfigured,
   getRedirectBase,
+  createOAuthState,
+  SESSION_MAX_AGE_SECONDS,
+  isValidOAuthState,
+  isCloudinarySigningConfigured,
+  signCloudinaryParams,
   type AppEnv,
 } from './lib/auth'
 
@@ -48,7 +53,16 @@ type AppBindings = {
   ALLOWED_GOOGLE_EMAILS?: string
   // OAuth 리다이렉트 기본 URL (미설정 시 요청 호스트에서 추출)
   OAUTH_REDIRECT_BASE?: string
+  // 세션 쿠키 서명용 비밀키
+  SESSION_SECRET?: string
+  // Cloudinary 서명 업로드용 (관리자만 업로드 가능하게)
+  CLOUDINARY_API_KEY?: string
+  CLOUDINARY_API_SECRET?: string
 }
+
+// Cloudinary 업로드 설정 (cloud name / preset 은 공개값)
+const CLOUDINARY_CLOUD_NAME = 'vxqu6qlr'
+const CLOUDINARY_UPLOAD_PRESET = 'jung6tax_upload'
 
 const app = new Hono<{ Bindings: AppBindings }>()
 
@@ -68,6 +82,7 @@ function getBaseUrl(c: any): string {
 async function checkAdminAuth(c: any): Promise<{ authed: boolean; email?: string }> {
   const env = c.env as AppEnv
   let token: string | null = null
+  let fromCookie = false
 
   const auth = c.req.header('Authorization')
   if (auth && auth.startsWith('Bearer ')) {
@@ -75,7 +90,10 @@ async function checkAdminAuth(c: any): Promise<{ authed: boolean; email?: string
   } else {
     const cookieHeader = c.req.header('cookie') || ''
     const match = cookieHeader.match(/admin_session=([^;]+)/)
-    if (match) token = decodeURIComponent(match[1])
+    if (match) {
+      token = decodeURIComponent(match[1])
+      fromCookie = true
+    }
   }
 
   if (!token) return { authed: false }
@@ -87,23 +105,42 @@ async function checkAdminAuth(c: any): Promise<{ authed: boolean; email?: string
   const stillAllowed = await isAllowedEmail(result.email, env)
   if (!stillAllowed) return { authed: false }
 
+  // 자동 연장: 발급된 지 하루가 지난 쿠키는 새 30일짜리로 교체
+  // → 30일 안에 한 번이라도 방문하면 로그인이 계속 유지됨 (매 요청마다 갱신하지 않도록 하루 간격)
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000
+  if (fromCookie && result.issuedAt && Date.now() - result.issuedAt > ONE_DAY_MS) {
+    const fresh = await createSessionToken(result.email, env)
+    setSessionCookie(c, fresh)
+  }
+
   return { authed: true, email: result.email }
 }
 
-// ===== 헬퍼: 공개 페이지용 '관리자 로그인 여부만' 가벼운 체크 (비동기) =====
-// 공개 페이지(홈, 칼럼 목록/상세 등)에서 '관리자 페이지' 버튼을 노출할지 결정하기 위한 체크.
-// D1 조회 없이 쿠키 토큰의 HMAC 서명만 검증 (성능 우선, UI 노출용이므로 안전).
-// 실제 관리자 API/페이지 접근 제어는 checkAdminAuth(D1 재확인 포함)이 담당.
+// ===== 헬퍼: 관리자 세션 쿠키 설정 (HttpOnly, 30일, https 에서는 Secure) =====
+function setSessionCookie(c: any, token: string): void {
+  const redirectBase = getRedirectBase(c.env as AppEnv, c.req.header)
+  c.header(
+    'Set-Cookie',
+    `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${SESSION_MAX_AGE_SECONDS}; SameSite=Lax${redirectBase.startsWith('https://') ? '; Secure' : ''}`,
+    { append: true }
+  )
+}
+
+// ===== 헬퍼: 공개 페이지용 관리자 여부 체크 (비동기) =====
+// 공개 페이지(홈, 칼럼 목록/상세 등)에서 관리자 버튼(관리자페이지·글쓰기·수정·삭제)을
+// 노출할지 결정. 쿠키 서명 + D1 admin_emails 재확인까지 하므로
+// 설정에서 권한을 회수하면 버튼도 즉시 사라짐.
+// 쿠키가 없는 일반 방문자는 D1 조회 없이 바로 false.
 async function checkAdminAuthCookie(c: any): Promise<{ authed: boolean; email?: string }> {
   const cookieHeader = c.req.header('cookie') || ''
-  const match = cookieHeader.match(/admin_session=([^;]+)/)
-  if (!match) return { authed: false }
-  const token = decodeURIComponent(match[1])
-  const result = await verifySessionToken(token, c.env as AppEnv)
-  if (result.valid && result.email) {
-    return { authed: true, email: result.email }
+  if (!/admin_session=/.test(cookieHeader)) return { authed: false }
+  const result = await checkAdminAuth(c)
+  if (result.authed) {
+    // 관리자 버튼이 들어간 HTML 이 CDN/브라우저 공용 캐시에 저장되어
+    // 다른 방문자에게 보이는 일이 없도록 캐시 금지
+    c.header('Cache-Control', 'private, no-store')
   }
-  return { authed: false }
+  return result
 }
 
 // ===== 메인 랜딩 페이지 =====
@@ -340,7 +377,13 @@ app.get('/api/auth/google', (c) => {
   if (!isOAuthConfigured(c.env as AppEnv)) {
     return c.html('<p>Google OAuth가 설정되지 않았습니다. 관리자에게 문의하세요.</p>', 500)
   }
-  const authUrl = getGoogleAuthUrl(c.env as AppEnv, redirectBase)
+  // 로그인 CSRF 방지용 state — 10분간 유효한 쿠키에 저장 후 콜백에서 대조
+  const state = createOAuthState()
+  c.header(
+    'Set-Cookie',
+    `oauth_state=${state}; HttpOnly; Path=/api/auth/google; Max-Age=600; SameSite=Lax${redirectBase.startsWith('https://') ? '; Secure' : ''}`
+  )
+  const authUrl = getGoogleAuthUrl(c.env as AppEnv, redirectBase, state)
   return c.redirect(authUrl)
 })
 
@@ -349,11 +392,19 @@ app.get('/api/auth/google/callback', async (c) => {
   const code = c.req.query('code')
   const error = c.req.query('error')
 
+  // state 쿠키는 한 번 쓰고 바로 삭제
+  const stateMatch = (c.req.header('cookie') || '').match(/oauth_state=([^;]+)/)
+  c.header('Set-Cookie', 'oauth_state=; HttpOnly; Path=/api/auth/google; Max-Age=0; SameSite=Lax')
+
   if (error) {
     return c.redirect('/admin/column/login?error=google_denied')
   }
   if (!code) {
     return c.redirect('/admin/column/login?error=no_code')
+  }
+  if (!isValidOAuthState(stateMatch?.[1], c.req.query('state'))) {
+    const msg = encodeURIComponent('로그인 요청이 만료되었거나 올바르지 않습니다. 다시 시도해 주세요.')
+    return c.redirect(`/admin/column/login?error=${msg}`)
   }
 
   const redirectBase = getRedirectBase(c.env as AppEnv, c.req.header)
@@ -374,12 +425,8 @@ app.get('/api/auth/google/callback', async (c) => {
   // 세션 토큰 발급 (비동기 HMAC)
   const token = await createSessionToken(result.email, c.env as AppEnv)
 
-  // 쿠키 설정 (HttpOnly, Secure, 7일) + 관리자 페이지로 리다이렉트
-  const SEVEN_DAYS = 7 * 24 * 60 * 60
-  c.header(
-    'Set-Cookie',
-    `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${SEVEN_DAYS}; SameSite=Lax${redirectBase.startsWith('https://') ? '; Secure' : ''}`
-  )
+  // 쿠키 설정 (HttpOnly, Secure, 30일) + 관리자 페이지로 리다이렉트
+  setSessionCookie(c, token)
   return c.redirect('/admin/column')
 })
 
@@ -524,6 +571,32 @@ app.delete('/api/admin/column/:id', async (c) => {
     const msg = e?.message || '삭제 중 오류가 발생했습니다.'
     return c.json({ ok: false, error: msg }, 500)
   }
+})
+
+// Cloudinary 업로드 서명 발급 API — 관리자에게만 서명을 내려줌
+// 서명 키가 설정되지 않았으면 signed:false 를 돌려주고, 클라이언트는 unsigned preset 으로 업로드
+app.post('/api/admin/cloudinary-signature', async (c) => {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
+    return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
+  }
+  const env = c.env as AppEnv
+  if (!isCloudinarySigningConfigured(env)) {
+    return c.json({ ok: true, signed: false })
+  }
+  const params = {
+    timestamp: String(Math.floor(Date.now() / 1000)),
+    upload_preset: CLOUDINARY_UPLOAD_PRESET,
+  }
+  const signature = await signCloudinaryParams(params, env.CLOUDINARY_API_SECRET!)
+  return c.json({
+    ok: true,
+    signed: true,
+    cloudName: CLOUDINARY_CLOUD_NAME,
+    apiKey: env.CLOUDINARY_API_KEY,
+    ...params,
+    signature,
+  })
 })
 
 // ===== 관리자 이메일(허용 목록) API =====
@@ -720,7 +793,7 @@ app.get('/sitemap-columns.xml', async (c) => {
 
   const urls = columns.map((col) => ({
     loc: `${baseUrl}/column/${col.category}/${col.slug}`,
-    lastmod: col.publishedAt,
+    lastmod: getModifiedDate(col),
     priority: '0.7',
   }))
 

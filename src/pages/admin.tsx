@@ -315,7 +315,12 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
               <p class="text-xs text-ink/50 mb-3">
                 <i class="fas fa-info-circle text-gold mr-1"></i>
                 텍스트, 이미지, 표를 삽입할 수 있습니다. 소제목은 H2/H3 태그로 구조화하세요.
+                <br />
+                <i class="fas fa-paste text-gold mr-1"></i>
+                네이버 카페·블로그 글을 붙여넣으면 서식이 자동 정리되고, 이미지는 Cloudinary로 자동 업로드됩니다.
               </p>
+              {/* 붙여넣은 이미지 업로드 진행/실패 안내 */}
+              <p id="paste-status" class="hidden"></p>
               {/* 간단한 툴바 */}
               <div class="flex flex-wrap gap-1 mb-2 border-b border-navy/10 pb-2">
                 <button type="button" class="format-btn" data-cmd="bold" title="굵게">
@@ -362,11 +367,14 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
             {/* 대표 썸네일 이미지 */}
             <div class="bg-white rounded-2xl border border-gold/30 p-6 shadow-sm">
               <label class="block text-sm font-bold mb-2 text-navy" for="f-thumbnail">
-                대표 썸네일 이미지 <span class="text-brand">*</span>
+                대표 썸네일 이미지 <span class="text-xs font-medium text-ink/50">(선택)</span>
               </label>
               <p class="text-xs text-ink/50 mb-3">
                 <i class="fas fa-cloud-arrow-up text-gold mr-1"></i>
                 파일 선택 시 Cloudinary CDN에 자동 업로드됩니다. (최대 10MB)
+                <br />
+                <i class="fas fa-wand-magic-sparkles text-gold mr-1"></i>
+                선택하지 않으면 본문의 첫 번째 사진이 자동으로 대표 이미지가 됩니다.
               </p>
               <div class="flex flex-col sm:flex-row gap-4">
                 <div class="shrink-0">
@@ -470,7 +478,9 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
               <h3 class="text-lg font-black mb-1">
                 <i class="fas fa-magnifying-glass text-gold mr-2"></i>SEO 설정
               </h3>
-              <p class="text-sm text-white/60 mb-5">검색엔진 최적화를 위한 메타 정보입니다.</p>
+              <p class="text-sm text-white/60 mb-5">
+                검색 결과와 카카오톡 공유 미리보기에 표시되는 정보입니다. 비워 두면 자동으로 채워집니다.
+              </p>
 
               <div class="space-y-5">
                 {/* 메타 타이틀 */}
@@ -483,9 +493,12 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
                     name="meta_title"
                     type="text"
                     value={col?.metaTitle ?? ''}
-                    placeholder="미입력 시 제목 자동 사용"
+                    placeholder="미입력 시 '제목 | 명륜세무회계' 자동 사용"
                     class="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition"
                   />
+                  <p class="mt-1 text-xs text-white/40">
+                    <span id="meta-title-count">0</span>자 · 권장 40자 이내 (길면 검색 결과에서 잘림), 검색어를 앞쪽에
+                  </p>
                 </div>
 
                 {/* 메타 설명 */}
@@ -499,12 +512,27 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
                     rows={3}
                     maxlength={160}
                     value={col?.metaDescription ?? ''}
-                    placeholder="미입력 시 본문 앞부분에서 자동 발췌"
+                    placeholder="미입력 시 '한 줄 요약' → 본문 앞부분 순으로 자동 사용"
                     class="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition resize-none"
                   />
                   <p class="mt-1 text-xs text-white/40">
-                    <span id="meta-desc-count">{col?.metaDescription?.length ?? 0}</span>/160자
+                    <span id="meta-desc-count">{col?.metaDescription?.length ?? 0}</span>/160자 · 권장 80~120자
                   </p>
+                </div>
+
+                {/* 검색 결과 미리보기 (입력 내용에 따라 실시간 갱신) */}
+                <div>
+                  <p class="text-sm font-bold mb-2 text-white">
+                    <i class="fab fa-google text-gold mr-1.5"></i>검색 결과 미리보기
+                  </p>
+                  <div class="rounded-xl bg-white px-4 py-3.5 text-left">
+                    <p id="seo-preview-url" class="text-xs text-[#4d5156] truncate">jung6tax.com › column</p>
+                    <p id="seo-preview-title" class="mt-1 text-lg leading-snug text-[#1a0dab] truncate">
+                      {col?.metaTitle || (col ? `${col.title} | 명륜세무회계` : '제목 | 명륜세무회계')}
+                    </p>
+                    <p id="seo-preview-desc" class="mt-1 text-sm leading-relaxed text-[#4d5156] line-clamp-2"></p>
+                  </div>
+                  <p id="seo-preview-warn" class="mt-2 text-xs text-gold hidden"></p>
                 </div>
               </div>
             </div>

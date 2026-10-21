@@ -337,10 +337,14 @@ export function extractExcerptFromContent(html: string, maxLen: number = 160): s
   return text.length > maxLen ? text.slice(0, maxLen - 1) + '…' : text
 }
 
-// 메타 설명이 없으면 본문에서 자동 생성
+// 메타 설명 우선순위: 직접 입력한 메타 설명 → 한 줄 요약 → 본문 앞부분 자동 발췌
+// (본문 첫머리는 인사말·서론인 경우가 많아, 직접 쓴 요약이 검색 결과에 더 적합)
 export function getMetaDescription(column: Column): string {
   if (column.metaDescription && column.metaDescription.trim()) {
-    return column.metaDescription.slice(0, 160)
+    return column.metaDescription.trim().slice(0, 160)
+  }
+  if (column.excerpt && column.excerpt.trim()) {
+    return extractExcerptFromContent(column.excerpt, 160)
   }
   return extractExcerptFromContent(column.content, 160)
 }

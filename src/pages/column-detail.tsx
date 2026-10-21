@@ -1,5 +1,5 @@
 import type { FC, Child } from 'hono/jsx'
-import { getCategory, getCategoryLabel, ensureButcherAlt } from '../lib/columns'
+import { getCategory, getCategoryLabel, ensureButcherAlt, getModifiedDate, getShareImage, getDisplayThumbnail } from '../lib/columns'
 import { getMetaTitle, getMetaDescription } from '../lib/dummy-data'
 import type { Column } from '../lib/columns'
 import type { HeadData } from '../renderer'
@@ -10,9 +10,7 @@ import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
 const ArticleJsonLd: FC<{ column: Column; baseUrl: string }> = ({ column, baseUrl }) => {
   const catLabel = getCategoryLabel(column.category)
   const canonical = `${baseUrl}/column/${column.category}/${column.slug}`
-  const imageUrl = column.thumbnail.startsWith('http')
-    ? column.thumbnail
-    : `${baseUrl}${column.thumbnail}`
+  const imageUrl = getShareImage(getDisplayThumbnail(column), baseUrl).url
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -20,8 +18,9 @@ const ArticleJsonLd: FC<{ column: Column; baseUrl: string }> = ({ column, baseUr
     headline: column.title,
     description: getMetaDescription(column),
     image: imageUrl,
+    inLanguage: 'ko-KR',
     datePublished: column.publishedAt,
-    dateModified: column.publishedAt,
+    dateModified: getModifiedDate(column),
     author: {
       '@type': 'Person',
       name: column.author,
@@ -79,7 +78,7 @@ const RelatedCard: FC<{ column: Column }> = ({ column }) => {
     <a href={detailUrl} class="group block bg-white rounded-xl overflow-hidden border border-gold/30 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
       <div class="aspect-[16/10] overflow-hidden bg-cream-soft">
         <img
-          src={column.thumbnail}
+          src={getDisplayThumbnail(column)}
           alt={column.thumbnailAlt}
           loading="lazy"
           decoding="async"
@@ -111,17 +110,18 @@ export function buildColumnHead(
   const canonical = `${baseUrl}${detailUrl}`
   const metaTitle = getMetaTitle(column)
   const metaDesc = getMetaDescription(column)
-  const ogImage = column.thumbnail.startsWith('http')
-    ? column.thumbnail
-    : `${baseUrl}${column.thumbnail}`
+  const shareImage = getShareImage(getDisplayThumbnail(column), baseUrl)
 
   const extraHead: Child = (
     <>
       <ArticleJsonLd column={column} baseUrl={baseUrl} />
       <BreadcrumbJsonLd column={column} baseUrl={baseUrl} />
       <meta property="article:published_time" content={column.publishedAt} />
+      <meta property="article:modified_time" content={getModifiedDate(column)} />
       <meta property="article:author" content={column.author} />
       <meta property="article:section" content={catLabel} />
+      {shareImage.width && <meta property="og:image:width" content={String(shareImage.width)} />}
+      {shareImage.height && <meta property="og:image:height" content={String(shareImage.height)} />}
     </>
   )
 
@@ -130,7 +130,8 @@ export function buildColumnHead(
     description: metaDesc,
     ogTitle: metaTitle,
     ogDescription: metaDesc,
-    ogImage,
+    ogImage: shareImage.url,
+    ogImageAlt: ensureButcherAlt(column.thumbnailAlt || column.title, column.category),
     ogType: 'article',
     canonical,
     extraHead,
@@ -170,7 +171,7 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, b
   }
 
   const catLabel = category.label
-  const thumbnailAlt = ensureButcherAlt(column.thumbnailAlt, column.category)
+  const thumbnailAlt = ensureButcherAlt(column.thumbnailAlt || column.title, column.category)
 
   return (
     <>
@@ -214,24 +215,50 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, b
                 조회 {column.views}
               </span>
             </div>
+
+            {/* 관리자 전용: 수정 / 삭제 버튼 (일반 방문자에게는 HTML 자체가 출력되지 않음) */}
+            {isAdmin && (
+              <div class="mt-5 flex items-center gap-2">
+                <a
+                  href={`/admin/column/edit/${column.id}`}
+                  class="inline-flex items-center gap-1.5 bg-white hover:bg-cream-soft text-navy text-sm font-bold px-4 py-2 rounded-full transition border border-navy/20"
+                >
+                  <i class="fas fa-pen-to-square"></i> 수정
+                </a>
+                <button
+                  type="button"
+                  id="column-delete-btn"
+                  data-id={column.id}
+                  data-title={column.title}
+                  data-back={`/column/${column.category}`}
+                  class="inline-flex items-center gap-1.5 bg-white hover:bg-red-50 text-red-600 text-sm font-bold px-4 py-2 rounded-full transition border border-red-200"
+                >
+                  <i class="fas fa-trash"></i> 삭제
+                </button>
+              </div>
+            )}
           </div>
         </section>
 
-        {/* ===== 대표 이미지 ===== */}
-        <section class="pb-2">
-          <div class="max-w-3xl mx-auto px-5">
-            <div class="aspect-[16/9] overflow-hidden rounded-2xl border border-gold/30 shadow-lg">
-              <img
-                src={column.thumbnail}
-                alt={thumbnailAlt}
-                width="1200"
-                height="675"
-                class="w-full h-full object-cover"
-                fetchpriority="high"
-              />
+        {/* ===== 대표 이미지 =====
+            썸네일을 따로 올린 글만 표시. 썸네일이 없는 글(카페 글 붙여넣기 등)은
+            본문 첫 사진이 바로 이어지므로 같은 사진이 두 번 보이지 않게 생략 */}
+        {column.thumbnail && (
+          <section class="pb-2">
+            <div class="max-w-3xl mx-auto px-5">
+              <div class="aspect-[16/9] overflow-hidden rounded-2xl border border-gold/30 shadow-lg">
+                <img
+                  src={column.thumbnail}
+                  alt={thumbnailAlt}
+                  width="1200"
+                  height="675"
+                  class="w-full h-full object-cover"
+                  fetchpriority="high"
+                />
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* ===== 본문 영역 ===== */}
         <section class="py-10">
@@ -304,6 +331,7 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, b
       </main>
       <SiteFooter />
       <CommonScript />
+      {isAdmin && <script src="/static/column-admin.js"></script>}
     </>
   )
 }

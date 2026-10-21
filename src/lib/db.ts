@@ -42,6 +42,7 @@ function rowToColumn(row: ColumnRow): Column {
     thumbnailAlt: row.thumbnail_alt ?? '',
     author: row.author ?? '김명륜 세무사',
     publishedAt: row.published_at,
+    updatedAt: row.updated_at ? row.updated_at.slice(0, 10) : undefined,
     metaTitle: row.meta_title ?? '',
     metaDescription: row.meta_description ?? '',
     views: row.views ?? 0,

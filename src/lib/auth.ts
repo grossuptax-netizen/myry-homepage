@@ -8,6 +8,9 @@
 //                            D1의 admin_emails 테이블이 비어있을 때 fallback으로 사용
 //   SESSION_SECRET        — (선택) HMAC 서명용 비밀키. 미설정 시 CLIENT_SECRET 사용
 //   OAUTH_REDIRECT_BASE   — (선택) 리다이렉트 기본 URL
+//   CLOUDINARY_API_KEY    — (권장) Cloudinary 서명 업로드용 API Key
+//   CLOUDINARY_API_SECRET — (권장) Cloudinary 서명 업로드용 API Secret
+//                            두 값이 있으면 관리자만 서명을 받아 업로드 가능
 
 export interface AppEnv {
   DB: D1Database
@@ -16,15 +19,16 @@ export interface AppEnv {
   ALLOWED_GOOGLE_EMAILS?: string
   SESSION_SECRET?: string
   OAUTH_REDIRECT_BASE?: string
+  CLOUDINARY_API_KEY?: string
+  CLOUDINARY_API_SECRET?: string
 }
 
 // ===== HMAC 서명 (Web Crypto API 사용, 비동기) =====
 // Cloudflare Workers에서 crypto.subtle 사용 — 암호학적으로 안전한 서명
+// 비밀키가 없으면 서명하지 않음 (코드에 고정된 키로 서명하면 누구나 세션을 위조할 수 있음)
 async function signHmac(raw: string, env: AppEnv): Promise<string> {
-  const secret =
-    env.SESSION_SECRET ||
-    env.GOOGLE_CLIENT_SECRET ||
-    'myungryun-fallback-secret-key-2026-change-me'
+  const secret = env.SESSION_SECRET || env.GOOGLE_CLIENT_SECRET
+  if (!secret) throw new Error('SESSION_SECRET 또는 GOOGLE_CLIENT_SECRET 가 설정되지 않았습니다.')
   const enc = new TextEncoder()
   const key = await crypto.subtle.importKey(
     'raw',
@@ -53,6 +57,10 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
+// ===== 로그인 유지 기간 (30일) =====
+// 쿠키 Max-Age 와 서버 측 토큰 만료 검사가 같은 값을 쓰도록 한 곳에서 관리
+export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60
+
 // ===== 세션 토큰 생성 (비동기, HMAC-SHA256 서명) =====
 // 형식: base64url(email:timestamp:hmac)
 export async function createSessionToken(email: string, env: AppEnv): Promise<string> {
@@ -69,7 +77,7 @@ export async function createSessionToken(email: string, env: AppEnv): Promise<st
 export async function verifySessionToken(
   token: string,
   env: AppEnv
-): Promise<{ valid: boolean; email?: string; expired?: boolean }> {
+): Promise<{ valid: boolean; email?: string; expired?: boolean; issuedAt?: number }> {
   try {
     // base64url → base64
     const b64 = token.replace(/-/g, '+').replace(/_/g, '/')
@@ -88,22 +96,38 @@ export async function verifySessionToken(
     const expectedSig = await signHmac(raw, env)
     if (!constantTimeEqual(sig, expectedSig)) return { valid: false }
 
-    // 7일 만료 (사용자 편의성 + 보안 균형)
+    // 30일 만료 (사용자 편의성 + 보안 균형)
     const tsNum = parseInt(ts, 10)
     if (isNaN(tsNum)) return { valid: false }
-    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000
-    if (Date.now() - tsNum > SEVEN_DAYS) {
+    if (Date.now() - tsNum > SESSION_MAX_AGE_SECONDS * 1000) {
       return { valid: false, expired: true, email }
     }
 
-    return { valid: true, email }
+    return { valid: true, email, issuedAt: tsNum }
   } catch {
     return { valid: false }
   }
 }
 
+// ===== OAuth state 값 생성 (로그인 CSRF 방지) =====
+// 로그인 시작 시 쿠키에 저장하고, 콜백에서 Google이 돌려준 값과 일치하는지 확인
+export function createOAuthState(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  let hex = ''
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0')
+  }
+  return hex
+}
+
+export function isValidOAuthState(expected: string | undefined, actual: string | undefined): boolean {
+  if (!expected || !actual) return false
+  return constantTimeEqual(expected, actual)
+}
+
 // ===== Google OAuth 인증 URL 생성 =====
-export function getGoogleAuthUrl(env: AppEnv, redirectBase: string): string {
+export function getGoogleAuthUrl(env: AppEnv, redirectBase: string, state: string): string {
   const clientId = env.GOOGLE_CLIENT_ID || ''
   const redirectUri = `${redirectBase}/api/auth/google/callback`
 
@@ -114,6 +138,7 @@ export function getGoogleAuthUrl(env: AppEnv, redirectBase: string): string {
     scope: 'openid email profile',
     access_type: 'online',
     prompt: 'select_account',
+    state,
   })
 
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
@@ -238,6 +263,31 @@ export async function isAllowedEmail(email: string, env: AppEnv): Promise<boolea
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean)
   return allowed.includes(normalized)
+}
+
+// ===== Cloudinary 서명 업로드 =====
+// 서명 업로드를 쓰면 API Secret 없이는 업로드할 수 없으므로,
+// 관리자 인증을 통과한 요청에만 서명을 내려주어 '관리자만 업로드'를 보장
+export function isCloudinarySigningConfigured(env: AppEnv): boolean {
+  return !!(env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET)
+}
+
+// Cloudinary 규칙: 파라미터를 키 이름순으로 'k=v&k=v' 로 이어붙이고 API Secret 을 붙여 SHA-1
+export async function signCloudinaryParams(
+  params: Record<string, string>,
+  apiSecret: string
+): Promise<string> {
+  const toSign = Object.keys(params)
+    .sort()
+    .map((k) => `${k}=${params[k]}`)
+    .join('&')
+  const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(toSign + apiSecret))
+  const bytes = new Uint8Array(digest)
+  let hex = ''
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0')
+  }
+  return hex
 }
 
 // ===== OAuth 설정 완료 여부 확인 =====

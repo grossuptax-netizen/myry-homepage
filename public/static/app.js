@@ -44,7 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         })
       },
-      { threshold: 0.12 }
+      // 요소의 윗부분이 화면 아래쪽 10% 지점까지 올라오면 표시.
+      // (비율 기준 threshold 를 쓰면 화면보다 훨씬 긴 칼럼 본문은 끝내 표시되지 않음)
+      { threshold: 0, rootMargin: '0px 0px -10% 0px' }
     )
     targets.forEach((el) => io.observe(el))
   } else {

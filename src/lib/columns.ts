@@ -82,9 +82,52 @@ export interface Column {
   thumbnailAlt: string // 썸네일 alt 텍스트 (정육점 키워드 포함)
   author: string // 작성자 (세무사명)
   publishedAt: string // 발행일 (ISO 날짜)
+  updatedAt?: string // 마지막 수정일 (ISO 날짜, D1 updated_at)
   metaTitle: string // SEO 메타 타이틀
   metaDescription: string // SEO 메타 설명 (최대 160자)
   views: number // 조회수
+}
+
+// ===== 검색엔진용 수정일 =====
+// 발행일과 마지막 수정일 중 늦은 날짜 (발행일을 직접 지정한 경우에도 수정일이 발행일보다 앞서지 않게)
+export function getModifiedDate(column: Column): string {
+  const updated = column.updatedAt || ''
+  return updated > column.publishedAt ? updated : column.publishedAt
+}
+
+// ===== 화면에 보여줄 대표 이미지 =====
+// 썸네일을 따로 올리지 않은 글(카페 글 붙여넣기 등)은 본문의 첫 번째 사진을 사용,
+// 본문에도 사진이 없으면 카테고리 기본 이미지 사용
+export function getDisplayThumbnail(column: Column): string {
+  if (column.thumbnail) return column.thumbnail
+  const firstImg = (column.content || '').match(/<img[^>]+src="(https?:\/\/[^"]+)"/i)
+  if (firstImg) return firstImg[1].replace(/&amp;/g, '&')
+  return `/static/columns/${column.category}.svg`
+}
+
+// ===== 공유/검색용 대표 이미지 URL =====
+// 카카오톡·페이스북·구글이 권장하는 1200x630 비율로 맞춤.
+// Cloudinary 이미지는 URL 변환으로 자동 리사이즈.
+// 이미지가 없거나 SVG(카카오톡·페이스북 미지원)면 로고 사용.
+export const SHARE_IMAGE_WIDTH = 1200
+export const SHARE_IMAGE_HEIGHT = 630
+
+export function getShareImage(
+  thumbnail: string,
+  baseUrl: string
+): { url: string; width?: number; height?: number } {
+  if (!thumbnail || /\.svg($|\?)/i.test(thumbnail)) return { url: `${baseUrl}/static/favicon-192.png` }
+  if (/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(thumbnail)) {
+    return {
+      url: thumbnail.replace(
+        '/image/upload/',
+        `/image/upload/c_fill,w_${SHARE_IMAGE_WIDTH},h_${SHARE_IMAGE_HEIGHT},f_jpg,q_auto/`
+      ),
+      width: SHARE_IMAGE_WIDTH,
+      height: SHARE_IMAGE_HEIGHT,
+    }
+  }
+  return { url: thumbnail.startsWith('http') ? thumbnail : `${baseUrl}${thumbnail}` }
 }
 
 // ===== 정육점 세무 키워드 (alt 텍스트 자동 보정용) =====

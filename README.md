@@ -102,7 +102,7 @@ JSON Body: `name`(필수), `phone`(필수), `business`(선택), `message`(선택
 - **로그인 URL**: `/admin/column/login`
 - **인증 방식**: **Google OAuth 2.0 소셜 로그인 (Authorization Code Flow)**
 - **접근 허용**: Google 로그인 성공 + D1 `admin_emails` 테이블의 활성 이메일 목록에 포함된 계정만
-- **세션 유지**: HttpOnly 쿠키 `admin_session` (HMAC-SHA256 서명, 7일 만료)
+- **세션 유지**: HttpOnly 쿠키 `admin_session` (HMAC-SHA256 서명, 30일 만료 · 방문 시 하루 단위로 자동 연장)
 - **관리자 이메일 관리**: `/admin/settings` 페이지에서 UI로 추가/삭제/활성·비활성 토글 (D1 저장)
 - **환경변수 Fallback**: D1 활성 관리자가 0명일 때만 `ALLOWED_GOOGLE_EMAILS` 환경변수로 초기 부트스트랩 가능 (잠김 방지)
 - **안전장치**:
@@ -110,15 +110,23 @@ JSON Body: `name`(필수), `phone`(필수), `business`(선택), `message`(선택
   - 마지막 남은 활성 관리자 1명은 비활성화 불가
   - API 요청마다 D1에서 "여전히 활성 관리자인가" 재확인 (권한 회수 즉시 반영)
 - **공개 영역 분리**: 일반 방문자의 `/column`, `/column/:category/:slug`는 완전 공개 (인증 무관)
+- **게시판 관리자 버튼**: 활성 관리자로 로그인한 경우에만 칼럼 목록에 `글쓰기`, 칼럼 상세에 `수정`/`삭제` 버튼을 서버에서 렌더링
+  (일반 방문자에게는 HTML 자체가 출력되지 않으며, 관리자 화면은 `Cache-Control: private, no-store`)
+- **로그인 CSRF 방지**: Google OAuth `state` 파라미터 검증
 
 ### 필수 환경변수 (운영)
 | 변수 | 설명 | 필수 |
 |------|------|------|
 | `GOOGLE_CLIENT_ID` | Google Cloud Console의 OAuth 2.0 Client ID | ✅ |
 | `GOOGLE_CLIENT_SECRET` | Google Cloud Console의 OAuth 2.0 Client Secret | ✅ |
-| `SESSION_SECRET` | HMAC 서명용 임의 비밀키 (미설정 시 CLIENT_SECRET 사용) | 권장 |
+| `SESSION_SECRET` | HMAC 서명용 임의 비밀키 (미설정 시 CLIENT_SECRET 사용, 둘 다 없으면 로그인 불가) | 권장 |
 | `ALLOWED_GOOGLE_EMAILS` | 초기 부트스트랩용 콤마 구분 이메일 (D1 비어있을 때만 사용) | 선택 |
 | `OAUTH_REDIRECT_BASE` | OAuth 리다이렉트 기본 URL (미설정 시 요청 호스트 추출) | 선택 |
+| `CLOUDINARY_API_KEY` | Cloudinary API Key — 관리자 전용 서명 업로드 | 권장 |
+| `CLOUDINARY_API_SECRET` | Cloudinary API Secret — 관리자 전용 서명 업로드 | 권장 |
+
+> Cloudinary 키 두 개를 등록한 뒤 Cloudinary 콘솔에서 `jung6tax_upload` preset 을 **Signed** 로 바꾸면
+> 관리자 외에는 이미지를 올릴 수 없습니다. (키 미등록 시에는 기존처럼 unsigned 업로드로 동작)
 
 ### Google Cloud Console 설정
 1. [Google Cloud Console](https://console.cloud.google.com/) → OAuth 2.0 Client ID 생성 (웹 애플리케이션)
