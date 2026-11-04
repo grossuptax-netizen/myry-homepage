@@ -1,5 +1,5 @@
 import type { FC } from 'hono/jsx'
-import { CATEGORIES, getCategoryLabel } from '../lib/columns'
+import { CATEGORIES, getCategoryLabel, todayKst } from '../lib/columns'
 import type { Column } from '../lib/columns'
 import type { AdminEmail } from '../lib/db'
 import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
@@ -461,10 +461,13 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
                   id="f-date"
                   name="published_at"
                   type="date"
-                  required
-                  value={col?.publishedAt ?? new Date().toISOString().slice(0, 10)}
+                  data-state={col ? 'saved' : 'today'}
+                  value={col?.publishedAt ?? todayKst()}
                   class="w-full rounded-xl border border-navy/15 bg-cream-soft px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition"
                 />
+                <p id="date-hint" class="mt-2 text-xs text-ink/50">
+                  {col ? '저장된 발행일입니다.' : '오늘 날짜로 올라갑니다. 날짜를 눌러 바꿀 수 있습니다.'}
+                </p>
               </div>
             </div>
 

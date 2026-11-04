@@ -82,6 +82,7 @@ export interface Column {
   thumbnailAlt: string // 썸네일 alt 텍스트 (정육점 키워드 포함)
   author: string // 작성자 (세무사명)
   publishedAt: string // 발행일 (ISO 날짜)
+  createdAt?: string // 처음 저장한 날 (YYYY-MM-DD, UTC)
   updatedAt?: string // 마지막 수정일 (ISO 날짜, D1 updated_at)
   metaTitle: string // SEO 메타 타이틀
   metaDescription: string // SEO 메타 설명 (최대 160자)
@@ -92,10 +93,18 @@ export interface Column {
   focusKeyword?: string // SEO 핵심 검색어 (columns.focus_keyword)
 }
 
+// ===== 오늘 날짜 (한국 시간, YYYY-MM-DD) =====
+// 서버 시계는 UTC 라 그냥 자르면 오전 9시 전에는 하루 전 날짜가 됨
+export function todayKst(): string {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
 // ===== 검색엔진용 수정일 =====
 // 발행일과 마지막 수정일 중 늦은 날짜 (발행일을 직접 지정한 경우에도 수정일이 발행일보다 앞서지 않게)
 export function getModifiedDate(column: Column): string {
   const updated = column.updatedAt || ''
+  // 처음 저장한 날 이후 고치지 않은 글은 발행일 그대로 (오래된 네이버 글을 가져와도 오늘 수정한 글이 되지 않게)
+  if (updated === column.createdAt) return column.publishedAt
   return updated > column.publishedAt ? updated : column.publishedAt
 }
 

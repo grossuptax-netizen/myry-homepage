@@ -43,6 +43,7 @@ function rowToColumn(row: ColumnRow): Column {
     thumbnailAlt: row.thumbnail_alt ?? '',
     author: row.author ?? '김명륜 세무사',
     publishedAt: row.published_at,
+    createdAt: row.created_at ? row.created_at.slice(0, 10) : undefined,
     updatedAt: row.updated_at ? row.updated_at.slice(0, 10) : undefined,
     isPublished: row.is_published !== 0,
     // D1 의 CURRENT_TIMESTAMP 는 'YYYY-MM-DD HH:MM:SS' (UTC) 형식

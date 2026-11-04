@@ -38,6 +38,7 @@
       html: d.html,
       sourceUrl: String(d.sourceUrl || ''),
       source: String(d.source || ''),
+      sourceDate: d.sourceDate == null ? '' : String(d.sourceDate), // 카페: 밀리초 숫자 / 블로그: 화면의 날짜 글자
     }
     try {
       sessionStorage.setItem(NAVER_CLIP_KEY, JSON.stringify(clip))

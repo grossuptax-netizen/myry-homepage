@@ -529,6 +529,83 @@ function sanitizePastedHtml(html) {
  * 다른 점은 보낼 곳뿐: 정육점 = 이 버튼을 설치한 홈페이지(SITE), 호텔 = https://myhoteltax.com
  * 아래 함수 전체가 즐겨찾기 주소(javascript:…)가 되어 네이버 화면에서 실행됨 → 함수 밖의 것을 쓰면 안 됨
  */
+/* 네이버 원본 날짜 → ISO 시각
+ * 카페는 밀리초 숫자, 블로그는 화면의 글자('2026. 8. 7. 16:30', '23시간 전', '5분 전', '방금 전')
+ * 못 읽거나 하루 넘게 미래면 null */
+function naverDateIso(value) {
+  const s = String(value == null ? '' : value).trim();
+  const now = Date.now();
+  const full = s.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.?\s*(?:(\d{1,2}):(\d{2}))?/);
+  const ago = s.match(/(\d+)\s*(분|시간)\s*전/);
+  let t = NaN;
+  if (/^\d{12,}$/.test(s)) t = Number(s);
+  else if (full) t = new Date(+full[1], full[2] - 1, +full[3], +(full[4] || 0), +(full[5] || 0)).getTime();
+  else if (ago) t = now - ago[1] * (ago[2] === '분' ? 60000 : 3600000);
+  else if (/방금/.test(s)) t = now;
+  return t > 0 && t <= now + 86400000 ? new Date(t).toISOString() : null;
+}
+
+// 브라우저 시간 기준 'YYYY-MM-DD' (toISOString 은 UTC 라 오전에 하루 전 날짜가 됨)
+function localDateString(date) {
+  const p = (n) => String(n).padStart(2, '0');
+  return date.getFullYear() + '-' + p(date.getMonth() + 1) + '-' + p(date.getDate());
+}
+
+/* --- 발행일 칸: 언제나 날짜가 보임 ---
+ * today  : 오늘 날짜 그대로 (저장할 때 값을 보내지 않음 → 처음 저장한 날로 올라감)
+ * naver  : 네이버 원본 날짜 / manual : 직접 고른 날짜 (둘 다 저장할 때 보냄)
+ * saved  : 저장된 날짜 (보내지 않음 → 그대로 유지)
+ * 네이버 날짜는 today 일 때만 채움 → 직접 고른·저장된·먼저 가져온 날짜는 바꾸지 않음 */
+function createPublishDate() {
+  const field = document.getElementById('f-date');
+  const hint = document.getElementById('date-hint');
+  if (!field) return null;
+  let state = field.dataset.state === 'saved' ? 'saved' : 'today';
+  if (state === 'today') field.value = localDateString(new Date());
+  let lastValue = field.value;
+  const show = (text, isError) => {
+    if (!hint) return;
+    hint.textContent = text;
+    hint.style.color = isError ? '#dc2626' : '';
+    hint.style.fontWeight = isError ? '700' : '';
+  };
+  field.addEventListener('change', () => {
+    if (!field.value) return; // 입력 도중이면 칸을 벗어날 때 처리
+    state = 'manual';
+    lastValue = field.value;
+    show('직접 고른 날짜입니다.');
+  });
+  field.addEventListener('blur', () => {
+    if (!field.value) field.value = lastValue; // 칸을 비운 채로 두지 않음
+  });
+  return {
+    applyNaver(raw) {
+      if (state !== 'today') return;
+      const iso = naverDateIso(raw);
+      if (!iso) {
+        show('네이버 날짜를 읽지 못했습니다. 날짜를 직접 골라 주세요.', true);
+        return;
+      }
+      state = 'naver';
+      field.value = localDateString(new Date(iso));
+      lastValue = field.value;
+      show('네이버에 올라간 날짜입니다.');
+      field.dispatchEvent(new Event('input', { bubbles: true })); // 저장 안 하고 나가기 경고용
+    },
+    forSave() {
+      return state === 'naver' || state === 'manual' ? field.value || lastValue : '';
+    },
+    markSaved(date) {
+      state = 'saved';
+      if (date) {
+        field.value = date;
+        lastValue = date;
+      }
+      show('저장된 발행일입니다.');
+    },
+  };
+}
+
 function naverClipBookmarklet(SITE) {
   const old = document.getElementById('myry-naver-clip');
   if (old) old.remove();
@@ -588,7 +665,7 @@ function naverClipBookmarklet(SITE) {
     t.innerHTML = a.subject || '';
     // 원본 주소는 늘 같은 모양으로 (홈페이지가 중복 글을 찾을 때 씀)
     const src = 'https://cafe.naver.com/ca-fe/cafes/' + (json.result.cafeId || p.cafe) + '/articles/' + (json.result.articleId || p.id);
-    return { title: t.value, html: a.contentHtml, sourceUrl: src };
+    return { title: t.value, html: a.contentHtml, sourceUrl: src, sourceDate: a.writeDate || '' };
   }
   // 블로그: 열린 화면(또는 안쪽 글 창)의 본문, 없으면 같은 블로그 주소에서 글을 다시 읽음
   async function readBlog() {
@@ -608,7 +685,10 @@ function naverClipBookmarklet(SITE) {
       if (!main) return null;
       const te = scope.querySelector('.se-title-text, .se_title .se_textarea, .pcol1, .tit_h3');
       const og = d.querySelector('meta[property="og:title"]');
-      return { title: ((te && te.textContent) || (og && og.content) || '').replace(/\s+/g, ' ').trim(), html: main.outerHTML };
+      const dateSel = '[class^="se_publishDate"], [class*=" se_publishDate"]';
+      const de = scope.querySelector(dateSel) || d.querySelector(dateSel);
+      return { title: ((te && te.textContent) || (og && og.content) || '').replace(/\s+/g, ' ').trim(), html: main.outerHTML,
+               sourceDate: ((de && de.textContent) || '').trim() };
     };
     let r = pick(f && f.contentDocument) || pick(document);
     if (!r && blogId && logNo) {
@@ -663,7 +743,7 @@ function naverClipBookmarklet(SITE) {
     const photos = [...d.querySelectorAll('img')].filter((img) =>
       !img.closest('.se-module-oglink, .se-sticker, .se-module-sticker') && /^https?:/.test(img.getAttribute('src') || '')).length;
     const clip = { type: 'myry-naver-clip', id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-                   title: r.title, html: d.body.innerHTML, source: location.href, sourceUrl: r.sourceUrl || '' };
+                   title: r.title, html: d.body.innerHTML, source: location.href, sourceUrl: r.sourceUrl || '', sourceDate: r.sourceDate || '' };
     say('<b>' + esc(r.title || '(제목 없음)') + '</b>사진 ' + photos + '장을 포함해 글을 담았습니다. 보낼 홈페이지를 고르세요.');
     $('.act').hidden = false;
     root.querySelectorAll('.send').forEach((b) => {
@@ -805,6 +885,7 @@ document.addEventListener('DOMContentLoaded', () => {
   })
 
   /* ===== 리치 텍스트 에디터 ===== */
+  const publishDate = createPublishDate()
   const editor = document.getElementById('f-content')
   const hiddenContent = document.getElementById('f-content-hidden')
   let getEditorHtmlForSave = () => (editor ? editor.innerHTML : '')
@@ -1299,6 +1380,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (editorIsEmpty()) editor.innerHTML = cleaned
       else editor.insertAdjacentHTML('beforeend', cleaned)
       editor.dispatchEvent(new Event('input', { bubbles: true }))
+      if (publishDate) publishDate.applyNaver(clip.sourceDate)
 
       // 4) 안내 + 꼬리말 되돌리기
       const where = /cafe\.naver\.com/.test(sourceUrl) ? '네이버 카페' : /blog\.naver\.com/.test(sourceUrl) ? '네이버 블로그' : '네이버'
@@ -2142,13 +2224,15 @@ document.addEventListener('DOMContentLoaded', () => {
         thumbnail: thumbnail,
         thumbnail_alt: (columnForm.querySelector('[name="thumbnail_alt"]') || {}).value || '',
         author: (columnForm.querySelector('[name="author"]') || {}).value || '',
-        published_at: (columnForm.querySelector('[name="published_at"]') || {}).value || '',
         meta_title: (columnForm.querySelector('[name="meta_title"]') || {}).value || '',
         meta_description: (columnForm.querySelector('[name="meta_description"]') || {}).value || '',
         source_url: (columnForm.querySelector('[name="source_url"]') || {}).value || '',
         focus_keyword: (columnForm.querySelector('[name="focus_keyword"]') || {}).value || '',
         is_published: isDraft ? 0 : 1,
       }
+      // 발행일은 직접 고르거나 네이버에서 가져왔을 때만 보냄 (새 글은 처음 저장한 날, 기존 글은 그대로)
+      const chosenDate = publishDate ? publishDate.forSave() : ''
+      if (chosenDate) payload.published_at = chosenDate
 
       // 클라이언트 사이드 기본 검증 (임시저장은 제목만)
       if (!payload.title.trim()) {
@@ -2162,10 +2246,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!payload.content.trim() || payload.content === '<br>' || payload.content === '<div><br></div>') {
           alert('본문을 입력해 주세요.')
-          return
-        }
-        if (!payload.published_at) {
-          alert('발행일을 선택해 주세요.')
           return
         }
       }
@@ -2199,6 +2279,7 @@ document.addEventListener('DOMContentLoaded', () => {
               history.replaceState(null, '', '/admin/column/edit/' + data.id)
             }
             draftPending = true
+            if (publishDate) publishDate.markSaved(data.publishedAt)
             showDraftStatus(new Date(), postUrl)
             refreshDrafts() // 임시저장 글 개수 갱신
             if (btn) {

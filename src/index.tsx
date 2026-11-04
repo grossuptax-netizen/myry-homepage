@@ -6,7 +6,7 @@ import { ColumnListPage } from './pages/column-list'
 import { ColumnDetailPage, buildColumnHead } from './pages/column-detail'
 import { AdminLoginPage, AdminColumnListPage, AdminColumnFormPage, AdminSettingsPage } from './pages/admin'
 import { TaxCalculatorPage } from './pages/tax-calculator'
-import { CATEGORIES, getCategory, getModifiedDate } from './lib/columns'
+import { CATEGORIES, getCategory, getModifiedDate, todayKst } from './lib/columns'
 import type { Column } from './lib/columns'
 import { cloudinaryConfig, importImage, CLOUDINARY_FOLDER } from './lib/cloudinary'
 import {
@@ -476,24 +476,25 @@ app.get('/api/admin/columns', async (c) => {
 // ===== 칼럼 입력값 검증 =====
 // 발행: 모든 필수 항목 확인
 // 임시저장(is_published = 0): 제목만 있으면 저장하고, 비어 있는 항목은 기본값으로 채움
-function prepareColumnInput(input: ColumnInput): string | null {
+// fallbackDate: 화면이 발행일을 보내지 않았을 때 쓸 날짜 (새 글=오늘, 기존 글=저장된 날짜)
+function prepareColumnInput(input: ColumnInput, fallbackDate: string): string | null {
   const isDraft = input.is_published === 0
   input.is_published = isDraft ? 0 : 1
   input.source_url = normalizeSourceUrl(input.source_url)
   input.focus_keyword =
     typeof input.focus_keyword === 'string' ? input.focus_keyword.trim().slice(0, 50) || null : null
   if (!input.title || !input.title.trim()) return '제목은 필수입니다.'
+  if (!input.published_at) input.published_at = fallbackDate
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.published_at)) return '발행일 형식이 올바르지 않습니다.'
   if (isDraft) {
     if (!input.category || !getCategory(input.category)) input.category = CATEGORIES[0].slug
     if (!input.slug || !input.slug.trim()) input.slug = `draft-${Date.now()}`
     if (!input.content) input.content = ''
-    if (!input.published_at) input.published_at = new Date().toISOString().slice(0, 10)
     return null
   }
   if (!input.category || !getCategory(input.category)) return '올바른 카테고리를 선택하세요.'
   if (!input.slug || !input.slug.trim()) return 'URL 슬러그는 필수입니다.'
   if (!input.content || !input.content.trim()) return '본문은 필수입니다.'
-  if (!input.published_at) return '발행일은 필수입니다.'
   return null
 }
 
@@ -507,7 +508,7 @@ app.post('/api/admin/column', async (c) => {
     const input = await c.req.json<ColumnInput>()
 
     // 필수 필드 검증 (임시저장은 제목만)
-    const invalid = prepareColumnInput(input)
+    const invalid = prepareColumnInput(input, todayKst())
     if (invalid) {
       return c.json({ ok: false, error: invalid }, 400)
     }
@@ -527,6 +528,7 @@ app.post('/api/admin/column', async (c) => {
       id,
       slug: input.slug,
       category: input.category,
+      publishedAt: input.published_at,
       isPublished: input.is_published === 1,
       message: input.is_published === 1 ? '칼럼이 저장되었습니다.' : '임시저장되었습니다.',
     })
@@ -552,7 +554,8 @@ app.put('/api/admin/column/:id', async (c) => {
     const input = await c.req.json<ColumnInput>()
 
     // 필수 필드 검증 (임시저장은 제목만)
-    const invalid = prepareColumnInput(input)
+    const current = input.published_at ? null : await getColumnByIdDb(c.env.DB, id)
+    const invalid = prepareColumnInput(input, current?.publishedAt || todayKst())
     if (invalid) {
       return c.json({ ok: false, error: invalid }, 400)
     }
@@ -572,6 +575,7 @@ app.put('/api/admin/column/:id', async (c) => {
       id,
       slug: input.slug,
       category: input.category,
+      publishedAt: input.published_at,
       isPublished: input.is_published === 1,
       message: input.is_published === 1 ? '칼럼이 수정되었습니다.' : '임시저장되었습니다.',
     })
