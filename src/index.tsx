@@ -8,6 +8,7 @@ import { AdminLoginPage, AdminColumnListPage, AdminColumnFormPage, AdminSettings
 import { TaxCalculatorPage } from './pages/tax-calculator'
 import { CATEGORIES, getCategory, getModifiedDate } from './lib/columns'
 import type { Column } from './lib/columns'
+import { cloudinaryConfig, importImage, CLOUDINARY_FOLDER } from './lib/cloudinary'
 import {
   getAllColumns,
   getAllColumnsForAdmin,
@@ -19,8 +20,9 @@ import {
   createColumnDb,
   updateColumnDb,
   deleteColumnDb,
+  listDraftsDb,
+  findColumnsBySourceDb,
   isSlugTakenDb,
-  seedDatabase,
   type ColumnInput,
   listAdminEmails,
   addAdminEmail,
@@ -38,7 +40,6 @@ import {
   createOAuthState,
   SESSION_MAX_AGE_SECONDS,
   isValidOAuthState,
-  isCloudinarySigningConfigured,
   signCloudinaryParams,
   type AppEnv,
 } from './lib/auth'
@@ -58,11 +59,21 @@ type AppBindings = {
   // Cloudinary 서명 업로드용 (관리자만 업로드 가능하게)
   CLOUDINARY_API_KEY?: string
   CLOUDINARY_API_SECRET?: string
+  CLOUDINARY_CLOUD_NAME?: string
+  // '1' 이면 검색엔진 수집 제외 (시연용 사이트 전용, 실제 사이트에는 설정하지 않음)
+  SITE_NOINDEX?: string
 }
 
-// Cloudinary 업로드 설정 (cloud name / preset 은 공개값)
-const CLOUDINARY_CLOUD_NAME = 'vxqu6qlr'
+// Cloudinary 업로드 preset (공개값). cloud name·폴더는 lib/cloudinary.ts
 const CLOUDINARY_UPLOAD_PRESET = 'jung6tax_upload'
+
+// 네이버 원본 주소만 저장 (카페·블로그, 500자 이내). 그 밖의 값은 버림
+function normalizeSourceUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const url = raw.trim()
+  if (!url || url.length > 500) return null
+  return /^https:\/\/(cafe|blog)\.naver\.com\//i.test(url) ? url : null
+}
 
 const app = new Hono<{ Bindings: AppBindings }>()
 
@@ -242,26 +253,29 @@ app.get('/column/:categorySlug/:columnSlug', async (c) => {
   const baseUrl = getBaseUrl(c)
 
   const category = getCategory(categorySlug)
-  const column = await getColumnBySlugDb(c.env.DB, categorySlug, columnSlug)
+  const { authed } = await checkAdminAuthCookie(c)
+  // 관리자는 임시저장 글도 미리보기 가능 (방문자에게는 '찾을 수 없음')
+  const column = await getColumnBySlugDb(c.env.DB, categorySlug, columnSlug, authed)
 
   if (!category || !column) {
     // 404 페이지
     c.set('head', { title: '칼럼을 찾을 수 없습니다 | 명륜세무회계', robots: 'noindex' } as HeadData)
-    const { authed } = await checkAdminAuthCookie(c)
     return c.render(<ColumnDetailPage column={undefined} related={[]} baseUrl={baseUrl} isAdmin={authed} />)
   }
 
   // head 데이터 설정 (SEO, OG, canonical, 구조화 데이터)
   const head = buildColumnHead(column, category, baseUrl)
+  if (column.isPublished === false) head.robots = 'noindex, nofollow'
   c.set('head', head)
 
   // 관련 칼럼 조회
   const related = await getRelatedColumnsDb(c.env.DB, column, 3)
 
-  // 조회수 증가 (비동기, 응답 지연 방지)
-  c.executionCtx.waitUntil(incrementViewsDb(c.env.DB, column.id))
+  // 조회수 증가 (비동기, 응답 지연 방지) — 임시저장 글 미리보기는 제외
+  if (column.isPublished !== false) {
+    c.executionCtx.waitUntil(incrementViewsDb(c.env.DB, column.id))
+  }
 
-  const { authed } = await checkAdminAuthCookie(c)
   return c.render(<ColumnDetailPage column={column} related={related} baseUrl={baseUrl} isAdmin={authed} />)
 })
 
@@ -459,6 +473,30 @@ app.get('/api/admin/columns', async (c) => {
   return c.json({ ok: true, columns })
 })
 
+// ===== 칼럼 입력값 검증 =====
+// 발행: 모든 필수 항목 확인
+// 임시저장(is_published = 0): 제목만 있으면 저장하고, 비어 있는 항목은 기본값으로 채움
+function prepareColumnInput(input: ColumnInput): string | null {
+  const isDraft = input.is_published === 0
+  input.is_published = isDraft ? 0 : 1
+  input.source_url = normalizeSourceUrl(input.source_url)
+  input.focus_keyword =
+    typeof input.focus_keyword === 'string' ? input.focus_keyword.trim().slice(0, 50) || null : null
+  if (!input.title || !input.title.trim()) return '제목은 필수입니다.'
+  if (isDraft) {
+    if (!input.category || !getCategory(input.category)) input.category = CATEGORIES[0].slug
+    if (!input.slug || !input.slug.trim()) input.slug = `draft-${Date.now()}`
+    if (!input.content) input.content = ''
+    if (!input.published_at) input.published_at = new Date().toISOString().slice(0, 10)
+    return null
+  }
+  if (!input.category || !getCategory(input.category)) return '올바른 카테고리를 선택하세요.'
+  if (!input.slug || !input.slug.trim()) return 'URL 슬러그는 필수입니다.'
+  if (!input.content || !input.content.trim()) return '본문은 필수입니다.'
+  if (!input.published_at) return '발행일은 필수입니다.'
+  return null
+}
+
 // 관리자 칼럼 생성 API
 app.post('/api/admin/column', async (c) => {
   const auth = await checkAdminAuth(c)
@@ -468,21 +506,10 @@ app.post('/api/admin/column', async (c) => {
   try {
     const input = await c.req.json<ColumnInput>()
 
-    // 필수 필드 검증
-    if (!input.title || !input.title.trim()) {
-      return c.json({ ok: false, error: '제목은 필수입니다.' }, 400)
-    }
-    if (!input.category || !getCategory(input.category)) {
-      return c.json({ ok: false, error: '올바른 카테고리를 선택하세요.' }, 400)
-    }
-    if (!input.slug || !input.slug.trim()) {
-      return c.json({ ok: false, error: 'URL 슬러그는 필수입니다.' }, 400)
-    }
-    if (!input.content || !input.content.trim()) {
-      return c.json({ ok: false, error: '본문은 필수입니다.' }, 400)
-    }
-    if (!input.published_at) {
-      return c.json({ ok: false, error: '발행일은 필수입니다.' }, 400)
+    // 필수 필드 검증 (임시저장은 제목만)
+    const invalid = prepareColumnInput(input)
+    if (invalid) {
+      return c.json({ ok: false, error: invalid }, 400)
     }
 
     // slug 중복 확인
@@ -495,7 +522,14 @@ app.post('/api/admin/column', async (c) => {
     if (id === null) {
       return c.json({ ok: false, error: '데이터베이스를 사용할 수 없습니다.' }, 500)
     }
-    return c.json({ ok: true, id, message: '칼럼이 저장되었습니다.' })
+    return c.json({
+      ok: true,
+      id,
+      slug: input.slug,
+      category: input.category,
+      isPublished: input.is_published === 1,
+      message: input.is_published === 1 ? '칼럼이 저장되었습니다.' : '임시저장되었습니다.',
+    })
   } catch (e: any) {
     console.error('create column error:', e)
     const msg = e?.message || '저장 중 오류가 발생했습니다.'
@@ -517,18 +551,10 @@ app.put('/api/admin/column/:id', async (c) => {
 
     const input = await c.req.json<ColumnInput>()
 
-    // 필수 필드 검증
-    if (!input.title || !input.title.trim()) {
-      return c.json({ ok: false, error: '제목은 필수입니다.' }, 400)
-    }
-    if (!input.category || !getCategory(input.category)) {
-      return c.json({ ok: false, error: '올바른 카테고리를 선택하세요.' }, 400)
-    }
-    if (!input.slug || !input.slug.trim()) {
-      return c.json({ ok: false, error: 'URL 슬러그는 필수입니다.' }, 400)
-    }
-    if (!input.content || !input.content.trim()) {
-      return c.json({ ok: false, error: '본문은 필수입니다.' }, 400)
+    // 필수 필드 검증 (임시저장은 제목만)
+    const invalid = prepareColumnInput(input)
+    if (invalid) {
+      return c.json({ ok: false, error: invalid }, 400)
     }
 
     // slug 중복 확인 (자신 제외)
@@ -541,7 +567,14 @@ app.put('/api/admin/column/:id', async (c) => {
     if (!success) {
       return c.json({ ok: false, error: '데이터베이스를 사용할 수 없습니다.' }, 500)
     }
-    return c.json({ ok: true, message: '칼럼이 수정되었습니다.' })
+    return c.json({
+      ok: true,
+      id,
+      slug: input.slug,
+      category: input.category,
+      isPublished: input.is_published === 1,
+      message: input.is_published === 1 ? '칼럼이 수정되었습니다.' : '임시저장되었습니다.',
+    })
   } catch (e: any) {
     console.error('update column error:', e)
     const msg = e?.message || '수정 중 오류가 발생했습니다.'
@@ -573,6 +606,21 @@ app.delete('/api/admin/column/:id', async (c) => {
   }
 })
 
+// 임시저장 글 목록 API — 글쓰기 화면의 '임시저장 | N' 버튼과 목록 창에서 사용
+app.get('/api/admin/drafts', async (c) => {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
+    return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
+  }
+  try {
+    const drafts = await listDraftsDb(c.env.DB)
+    return c.json({ ok: true, drafts })
+  } catch (e: any) {
+    console.error('list drafts error:', e)
+    return c.json({ ok: false, error: '임시저장 글을 불러오지 못했습니다.' }, 500)
+  }
+})
+
 // Cloudinary 업로드 서명 발급 API — 관리자에게만 서명을 내려줌
 // 서명 키가 설정되지 않았으면 signed:false 를 돌려주고, 클라이언트는 unsigned preset 으로 업로드
 app.post('/api/admin/cloudinary-signature', async (c) => {
@@ -580,23 +628,56 @@ app.post('/api/admin/cloudinary-signature', async (c) => {
   if (!auth.authed) {
     return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
   }
-  const env = c.env as AppEnv
-  if (!isCloudinarySigningConfigured(env)) {
+  const cfg = cloudinaryConfig(c.env)
+  if (!cfg) {
     return c.json({ ok: true, signed: false })
   }
+  // 직접 올리는 사진도 정육점 폴더(jung6tax)로
   const params = {
+    folder: CLOUDINARY_FOLDER,
     timestamp: String(Math.floor(Date.now() / 1000)),
     upload_preset: CLOUDINARY_UPLOAD_PRESET,
   }
-  const signature = await signCloudinaryParams(params, env.CLOUDINARY_API_SECRET!)
+  const signature = await signCloudinaryParams(params, cfg.apiSecret)
   return c.json({
     ok: true,
     signed: true,
-    cloudName: CLOUDINARY_CLOUD_NAME,
-    apiKey: env.CLOUDINARY_API_KEY,
+    cloudName: cfg.cloudName,
+    apiKey: cfg.apiKey,
     ...params,
     signature,
   })
+})
+
+// 외부 사진(네이버 등) 옮기기 API — 서버가 Referer 없이 받아 정육점 Cloudinary 폴더로 서명 업로드
+app.post('/api/admin/cloudinary/import', async (c) => {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
+    return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
+  }
+  const cfg = cloudinaryConfig(c.env)
+  if (!cfg) {
+    return c.json(
+      { ok: false, error: 'Cloudinary 키(CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET)가 설정되지 않았습니다.' },
+      503
+    )
+  }
+  const body = await c.req.json<{ url?: string }>().catch(() => ({} as { url?: string }))
+  const result = await importImage(cfg, body && body.url)
+  return c.json(result, result.ok ? 200 : 502)
+})
+
+// 같은 네이버 원본 주소로 등록된 글 찾기 (네이버 글 담기 중복 확인)
+app.get('/api/admin/columns/by-source', async (c) => {
+  const auth = await checkAdminAuth(c)
+  if (!auth.authed) {
+    return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
+  }
+  const sourceUrl = normalizeSourceUrl(c.req.query('url'))
+  if (!sourceUrl) return c.json({ ok: true, matches: [] })
+  const exclude = parseInt(c.req.query('exclude') || '', 10)
+  const matches = await findColumnsBySourceDb(c.env.DB, sourceUrl, isNaN(exclude) ? undefined : exclude)
+  return c.json({ ok: true, matches })
 })
 
 // ===== 관리자 이메일(허용 목록) API =====
@@ -715,30 +796,15 @@ app.delete('/api/admin/admins/:id', async (c) => {
   }
 })
 
-// ===== 시드 엔드포인트 =====
-// D1이 비어있을 때 더미 데이터 18개 삽입
-// 인증 필요 (관리자만 실행 가능)
-app.post('/api/admin/seed', async (c) => {
-  const auth = await checkAdminAuth(c)
-  if (!auth.authed) {
-    return c.json({ ok: false, error: '인증이 필요합니다.' }, 401)
-  }
-  try {
-    const result = await seedDatabase(c.env.DB)
-    if (result.skipped) {
-      return c.json({ ok: true, message: '데이터베이스에 이미 데이터가 있어 시드를 건너뛰었습니다.', seeded: 0 })
-    }
-    return c.json({ ok: true, message: `${result.seeded}개의 더미 칼럼이 삽입되었습니다.`, seeded: result.seeded })
-  } catch (e: any) {
-    console.error('seed error:', e)
-    return c.json({ ok: false, error: '시드 중 오류가 발생했습니다.' }, 500)
-  }
-})
 
 // ===== SEO 인프라 라우트 =====
 
 // robots.txt
 app.get('/robots.txt', (c) => {
+  // 시연용 사이트: 전체 수집 금지
+  if (c.env.SITE_NOINDEX === '1') {
+    return c.text('User-agent: *\nDisallow: /\n', 200, { 'Content-Type': 'text/plain; charset=utf-8' })
+  }
   const baseUrl = getBaseUrl(c)
   const robots = `User-agent: *
 Allow: /

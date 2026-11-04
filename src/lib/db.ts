@@ -1,13 +1,12 @@
 // ===== D1 데이터베이스 접근 레이어 =====
-// 칼럼 게시판 CRUD + 더미 데이터 폴백 + 시드 기능
+// 칼럼 게시판 CRUD
 //
 // 설계 원칙:
 // 1. 모든 쿼리는 파라미터 바인딩(? 플레이스홀더) 사용 → SQL 인젝션 방지
-// 2. D1 바인딩이 없거나 쿼리 실패 시 더미 데이터로 폴백 → 개발/미리보기 안정성
+// 2. 보여주는 글은 DB 에 있는 글뿐 (조회 실패·빈 DB 면 빈 목록)
 // 3. D1 행(snake_case, INTEGER 불린) ↔ Column 인터페이스(camelCase) 변환
 
 import type { Column } from './columns'
-import { DUMMY_COLUMNS, SORTED_COLUMNS } from './dummy-data'
 
 // D1 원시 행 타입 (DB 컬럼명 스네이크케이스)
 interface ColumnRow {
@@ -27,6 +26,8 @@ interface ColumnRow {
   is_published: number
   created_at: string
   updated_at: string
+  source_url?: string | null // 0003 마이그레이션 (네이버 원본 주소)
+  focus_keyword?: string | null // 0004 마이그레이션 (SEO 핵심 검색어)
 }
 
 // D1 행 → Column 인터페이스 변환
@@ -43,6 +44,11 @@ function rowToColumn(row: ColumnRow): Column {
     author: row.author ?? '김명륜 세무사',
     publishedAt: row.published_at,
     updatedAt: row.updated_at ? row.updated_at.slice(0, 10) : undefined,
+    isPublished: row.is_published !== 0,
+    // D1 의 CURRENT_TIMESTAMP 는 'YYYY-MM-DD HH:MM:SS' (UTC) 형식
+    savedAt: row.updated_at ? row.updated_at.replace(' ', 'T') + 'Z' : undefined,
+    sourceUrl: row.source_url ?? undefined,
+    focusKeyword: row.focus_keyword ?? undefined,
     metaTitle: row.meta_title ?? '',
     metaDescription: row.meta_description ?? '',
     views: row.views ?? 0,
@@ -57,38 +63,33 @@ function sortByPublished(cols: Column[]): Column[] {
 }
 
 // ===== 조회 함수들 =====
+// DB(D1)에 있는 글만 보여줌. 글이 하나도 없으면 빈 목록 (예전처럼 코드 속 더미 글로 채우지 않음)
 
 // 전체 공개 칼럼 조회 (최신순)
 export async function getAllColumns(db: D1Database | undefined): Promise<Column[]> {
-  if (!db) return SORTED_COLUMNS
+  if (!db) return []
   try {
     const result = await db
       .prepare('SELECT * FROM columns WHERE is_published = 1 ORDER BY published_at DESC')
       .all<ColumnRow>()
-    if (!result.results || result.results.length === 0) {
-      return SORTED_COLUMNS // 빈 DB면 더미 폴백
-    }
-    return result.results.map(rowToColumn)
+    return (result.results || []).map(rowToColumn)
   } catch (e) {
     console.error('getAllColumns error:', e)
-    return SORTED_COLUMNS
+    return []
   }
 }
 
 // 관리자용 전체 칼럼 조회 (비공개 포함)
 export async function getAllColumnsForAdmin(db: D1Database | undefined): Promise<Column[]> {
-  if (!db) return SORTED_COLUMNS
+  if (!db) return []
   try {
     const result = await db
       .prepare('SELECT * FROM columns ORDER BY published_at DESC')
       .all<ColumnRow>()
-    if (!result.results || result.results.length === 0) {
-      return SORTED_COLUMNS
-    }
-    return result.results.map(rowToColumn)
+    return (result.results || []).map(rowToColumn)
   } catch (e) {
     console.error('getAllColumnsForAdmin error:', e)
-    return SORTED_COLUMNS
+    return []
   }
 }
 
@@ -97,7 +98,7 @@ export async function getColumnsByCategoryDb(
   db: D1Database | undefined,
   category: string
 ): Promise<Column[]> {
-  if (!db) return SORTED_COLUMNS.filter((c) => c.category === category)
+  if (!db) return []
   try {
     const result = await db
       .prepare(
@@ -105,35 +106,32 @@ export async function getColumnsByCategoryDb(
       )
       .bind(category)
       .all<ColumnRow>()
-    if (!result.results || result.results.length === 0) {
-      return SORTED_COLUMNS.filter((c) => c.category === category)
-    }
-    return result.results.map(rowToColumn)
+    return (result.results || []).map(rowToColumn)
   } catch (e) {
     console.error('getColumnsByCategoryDb error:', e)
-    return SORTED_COLUMNS.filter((c) => c.category === category)
+    return []
   }
 }
 
-// slug로 단일 칼럼 조회 (공개만)
+// slug로 단일 칼럼 조회 (기본: 공개만, includeDrafts=true 면 임시저장 글 포함 — 관리자 미리보기용)
 export async function getColumnBySlugDb(
   db: D1Database | undefined,
   category: string,
-  slug: string
+  slug: string,
+  includeDrafts = false
 ): Promise<Column | undefined> {
-  if (!db) return DUMMY_COLUMNS.find((c) => c.category === category && c.slug === slug)
+  if (!db) return undefined
   try {
     const row = await db
-      .prepare('SELECT * FROM columns WHERE category = ? AND slug = ? AND is_published = 1')
+      .prepare(
+        `SELECT * FROM columns WHERE category = ? AND slug = ?${includeDrafts ? '' : ' AND is_published = 1'}`
+      )
       .bind(category, slug)
       .first<ColumnRow>()
-    if (!row) {
-      return DUMMY_COLUMNS.find((c) => c.category === category && c.slug === slug)
-    }
-    return rowToColumn(row)
+    return row ? rowToColumn(row) : undefined
   } catch (e) {
     console.error('getColumnBySlugDb error:', e)
-    return DUMMY_COLUMNS.find((c) => c.category === category && c.slug === slug)
+    return undefined
   }
 }
 
@@ -142,17 +140,16 @@ export async function getColumnByIdDb(
   db: D1Database | undefined,
   id: number
 ): Promise<Column | undefined> {
-  if (!db) return DUMMY_COLUMNS.find((c) => c.id === id)
+  if (!db) return undefined
   try {
     const row = await db
       .prepare('SELECT * FROM columns WHERE id = ?')
       .bind(id)
       .first<ColumnRow>()
-    if (!row) return DUMMY_COLUMNS.find((c) => c.id === id)
-    return rowToColumn(row)
+    return row ? rowToColumn(row) : undefined
   } catch (e) {
     console.error('getColumnByIdDb error:', e)
-    return DUMMY_COLUMNS.find((c) => c.id === id)
+    return undefined
   }
 }
 
@@ -162,9 +159,7 @@ export async function getRelatedColumnsDb(
   column: Column,
   count: number = 3
 ): Promise<Column[]> {
-  if (!db) {
-    return SORTED_COLUMNS.filter((c) => c.category === column.category && c.id !== column.id).slice(0, count)
-  }
+  if (!db) return []
   try {
     const result = await db
       .prepare(
@@ -172,13 +167,10 @@ export async function getRelatedColumnsDb(
       )
       .bind(column.category, column.id, count)
       .all<ColumnRow>()
-    if (!result.results || result.results.length === 0) {
-      return SORTED_COLUMNS.filter((c) => c.category === column.category && c.id !== column.id).slice(0, count)
-    }
-    return result.results.map(rowToColumn)
+    return (result.results || []).map(rowToColumn)
   } catch (e) {
     console.error('getRelatedColumnsDb error:', e)
-    return SORTED_COLUMNS.filter((c) => c.category === column.category && c.id !== column.id).slice(0, count)
+    return []
   }
 }
 
@@ -194,13 +186,13 @@ export async function incrementViewsDb(db: D1Database | undefined, id: number): 
 
 // 칼럼 개수 카운트
 export async function countColumnsDb(db: D1Database | undefined): Promise<number> {
-  if (!db) return DUMMY_COLUMNS.length
+  if (!db) return 0
   try {
     const row = await db.prepare('SELECT COUNT(*) as cnt FROM columns').first<{ cnt: number }>()
     return row?.cnt ?? 0
   } catch (e) {
     console.error('countColumnsDb error:', e)
-    return DUMMY_COLUMNS.length
+    return 0
   }
 }
 
@@ -220,6 +212,8 @@ export interface ColumnInput {
   meta_title: string
   meta_description: string
   is_published?: number
+  source_url?: string | null // 네이버 원본 주소 (직접 작성한 글은 null)
+  focus_keyword?: string | null // SEO 핵심 검색어
 }
 
 // 칼럼 생성 → 새 id 반환
@@ -229,8 +223,8 @@ export async function createColumnDb(db: D1Database | undefined, input: ColumnIn
     const result = await db
       .prepare(
         `INSERT INTO columns
-          (category, title, slug, excerpt, content, thumbnail, thumbnail_alt, author, published_at, meta_title, meta_description, is_published)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          (category, title, slug, excerpt, content, thumbnail, thumbnail_alt, author, published_at, meta_title, meta_description, is_published, source_url, focus_keyword)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         input.category,
@@ -244,7 +238,9 @@ export async function createColumnDb(db: D1Database | undefined, input: ColumnIn
         input.published_at,
         input.meta_title || null,
         input.meta_description || null,
-        input.is_published ?? 1
+        input.is_published ?? 1,
+        input.source_url || null,
+        input.focus_keyword || null
       )
       .run()
     return result.meta.last_row_id ?? null
@@ -267,7 +263,7 @@ export async function updateColumnDb(
         `UPDATE columns SET
           category = ?, title = ?, slug = ?, excerpt = ?, content = ?,
           thumbnail = ?, thumbnail_alt = ?, author = ?, published_at = ?,
-          meta_title = ?, meta_description = ?, is_published = ?,
+          meta_title = ?, meta_description = ?, is_published = ?, source_url = ?, focus_keyword = ?,
           updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`
       )
@@ -284,6 +280,8 @@ export async function updateColumnDb(
         input.meta_title || null,
         input.meta_description || null,
         input.is_published ?? 1,
+        input.source_url || null,
+        input.focus_keyword || null,
         id
       )
       .run()
@@ -292,6 +290,61 @@ export async function updateColumnDb(
     console.error('updateColumnDb error:', e)
     throw e
   }
+}
+
+// 같은 네이버 원본 주소로 이미 등록된 글 찾기 (네이버 글 담기 중복 확인용, 수정 중인 글 자신은 제외)
+export interface SourceMatch {
+  id: number
+  title: string
+  isPublished: boolean
+}
+
+interface SourceMatchRow {
+  id: number
+  title: string
+  is_published: number
+}
+
+export async function findColumnsBySourceDb(
+  db: D1Database | undefined,
+  sourceUrl: string,
+  excludeId?: number
+): Promise<SourceMatch[]> {
+  if (!db || !sourceUrl) return []
+  const result = await db
+    .prepare('SELECT id, title, is_published FROM columns WHERE source_url = ? AND id != ? ORDER BY id DESC LIMIT 5')
+    .bind(sourceUrl, excludeId ?? -1)
+    .all<SourceMatchRow>()
+  return (result.results || []).map((r: SourceMatchRow) => ({
+    id: r.id,
+    title: r.title,
+    isPublished: r.is_published !== 0,
+  }))
+}
+
+// 임시저장 글 목록 (최근 저장 순) — 글쓰기 화면의 '임시저장 글' 창용
+export interface DraftSummary {
+  id: number
+  title: string
+  savedAt: string // ISO (UTC)
+}
+
+interface DraftRow {
+  id: number
+  title: string
+  updated_at: string | null
+}
+
+export async function listDraftsDb(db: D1Database | undefined): Promise<DraftSummary[]> {
+  if (!db) return []
+  const result = await db
+    .prepare('SELECT id, title, updated_at FROM columns WHERE is_published = 0 ORDER BY updated_at DESC, id DESC')
+    .all<DraftRow>()
+  return (result.results || []).map((r: DraftRow) => ({
+    id: r.id,
+    title: r.title,
+    savedAt: r.updated_at ? r.updated_at.replace(' ', 'T') + 'Z' : '',
+  }))
 }
 
 // 칼럼 삭제
@@ -326,52 +379,6 @@ export async function isSlugTakenDb(
   } catch (e) {
     console.error('isSlugTakenDb error:', e)
     return false
-  }
-}
-
-// ===== 시드 기능 =====
-// D1이 비어있을 때 더미 데이터 18개를 INSERT
-// /api/admin/seed 엔드포인트에서 호출
-export async function seedDatabase(db: D1Database | undefined): Promise<{ seeded: number; skipped: boolean }> {
-  if (!db) return { seeded: 0, skipped: true }
-  try {
-    // 이미 데이터가 있으면 스킵
-    const countRow = await db.prepare('SELECT COUNT(*) as cnt FROM columns').first<{ cnt: number }>()
-    if (countRow && countRow.cnt > 0) {
-      return { seeded: 0, skipped: true }
-    }
-
-    // 더미 데이터 전체 INSERT (파라미터 바인딩으로 안전하게)
-    let inserted = 0
-    for (const col of DUMMY_COLUMNS) {
-      await db
-        .prepare(
-          `INSERT INTO columns
-            (id, category, title, slug, excerpt, content, thumbnail, thumbnail_alt, author, published_at, meta_title, meta_description, views, is_published)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
-        )
-        .bind(
-          col.id,
-          col.category,
-          col.title,
-          col.slug,
-          col.excerpt,
-          col.content,
-          col.thumbnail,
-          col.thumbnailAlt,
-          col.author,
-          col.publishedAt,
-          col.metaTitle,
-          col.metaDescription,
-          col.views
-        )
-        .run()
-      inserted++
-    }
-    return { seeded: inserted, skipped: false }
-  } catch (e) {
-    console.error('seedDatabase error:', e)
-    throw e
   }
 }
 

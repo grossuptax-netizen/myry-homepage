@@ -86,6 +86,10 @@ export interface Column {
   metaTitle: string // SEO 메타 타이틀
   metaDescription: string // SEO 메타 설명 (최대 160자)
   views: number // 조회수
+  isPublished?: boolean // 공개 여부 (false = 임시저장, 관리자만 볼 수 있음)
+  savedAt?: string // 마지막 저장 시각 (ISO, UTC) — 글쓰기 화면의 '마지막 임시저장' 표시용
+  sourceUrl?: string // 네이버 글 담기로 가져온 글의 원본 주소 (columns.source_url)
+  focusKeyword?: string // SEO 핵심 검색어 (columns.focus_keyword)
 }
 
 // ===== 검색엔진용 수정일 =====

@@ -1,4 +1,5 @@
 import type { FC } from 'hono/jsx'
+import { FloatingConsult } from '../components/layout'
 
 // ===== Header / 상단 네비게이션 =====
 // isAdmin: Google OAuth 로그인(grossuptax@gmail.com) 시 관리자페이지 버튼 노출
@@ -538,6 +539,7 @@ export const Home: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
       <Consult />
     </main>
     <Footer />
+    <FloatingConsult />
     <script src="/static/app.js"></script>
   </>
 )

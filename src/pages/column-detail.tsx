@@ -3,7 +3,7 @@ import { getCategory, getCategoryLabel, ensureButcherAlt, getModifiedDate, getSh
 import { getMetaTitle, getMetaDescription } from '../lib/dummy-data'
 import type { Column } from '../lib/columns'
 import type { HeadData } from '../renderer'
-import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
+import { SiteHeader, SiteFooter, CommonScript, FloatingConsult } from '../components/layout'
 
 // ===== JSON-LD 구조화 데이터 (Schema.org Article) =====
 // 검색엔진에 칼럼 정보를 구조화하여 전달
@@ -97,6 +97,57 @@ const RelatedCard: FC<{ column: Column }> = ({ column }) => {
   )
 }
 
+// ===== 관리자 전용: 검색엔진이 보는 정보 =====
+// 메타 타이틀·설명은 화면에 안 보이므로, 발행 후 실제로 무엇이 검색엔진에 전달되는지 관리자에게 보여줌
+const AdminSeoBox: FC<{ column: Column; baseUrl: string }> = ({ column, baseUrl }) => {
+  const html = column.content || ''
+  const h2 = (html.match(/<h2[\s>]/gi) || []).length
+  const h3 = (html.match(/<h3[\s>]/gi) || []).length
+  const imgs = html.match(/<img\b[^>]*>/gi) || []
+  const withAlt = imgs.filter((tag) => /\balt="[^"]+"/i.test(tag)).length
+  const share = getShareImage(getDisplayThumbnail(column), baseUrl)
+  const url = `${baseUrl}/column/${column.category}/${column.slug}`
+  const Row: FC<{ label: string; children: Child }> = ({ label, children }) => (
+    <div class="grid grid-cols-[7.5rem_1fr] gap-3 py-2 border-b border-navy/10 last:border-0">
+      <dt class="text-ink/50">{label}</dt>
+      <dd class="text-navy break-all">{children}</dd>
+    </div>
+  )
+  return (
+    <aside class="mt-10 rounded-2xl border border-dashed border-navy/30 bg-white/70 p-5 text-sm">
+      <p class="font-black text-navy mb-1">
+        <i class="fas fa-magnifying-glass text-gold mr-1.5"></i>검색엔진이 보는 정보
+        <span class="ml-2 text-xs font-medium text-ink/40">(관리자에게만 보임)</span>
+      </p>
+      {/* 구글 검색 결과 모양 */}
+      <div class="my-3 rounded-xl bg-white border border-navy/10 px-4 py-3">
+        <p class="text-xs text-[#4d5156] truncate">{url.replace(/^https?:\/\//, '')}</p>
+        <p class="mt-1 text-lg leading-snug text-[#1a0dab]">{getMetaTitle(column)}</p>
+        <p class="mt-1 text-sm leading-relaxed text-[#4d5156]">{getMetaDescription(column)}</p>
+      </div>
+      <dl>
+        <Row label="핵심 검색어">{column.focusKeyword || <span class="text-red-600">미설정</span>}</Row>
+        <Row label="메타 타이틀">
+          {column.metaTitle ? column.metaTitle : <span class="text-amber-700">비어 있음 → '제목 | 명륜세무회계' 자동 사용</span>}
+        </Row>
+        <Row label="메타 설명">
+          {column.metaDescription
+            ? column.metaDescription
+            : <span class="text-amber-700">비어 있음 → {column.excerpt ? '한 줄 요약' : '본문 앞부분'} 자동 사용</span>}
+        </Row>
+        <Row label="소제목">
+          H2 {h2}개 · H3 {h3}개{h2 === 0 && <span class="ml-2 text-red-600">(소제목이 없음)</span>}
+        </Row>
+        <Row label="사진 설명(alt)">
+          사진 {imgs.length}장 중 {withAlt}장 설명 있음
+        </Row>
+        <Row label="공유 이미지">{share.url.replace(/^https?:\/\//, '').slice(0, 80)}{share.url.length > 88 ? '…' : ''}</Row>
+        <Row label="글 주소">{url}</Row>
+      </dl>
+    </aside>
+  )
+}
+
 // ===== 칼럼 head 데이터 빌더 =====
 // 라우트에서 c.set('head', buildColumnHead(...)) 로 호출
 export function buildColumnHead(
@@ -165,6 +216,7 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, b
           </div>
         </main>
         <SiteFooter />
+        <FloatingConsult />
         <CommonScript />
       </>
     )
@@ -181,6 +233,16 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, b
         <section class="relative pt-28 pb-8 bg-gradient-to-b from-cream-soft to-cream overflow-hidden">
           <div class="absolute -top-16 -right-16 w-72 h-72 bg-brand-light rounded-full blur-3xl opacity-30"></div>
           <div class="relative max-w-3xl mx-auto px-5">
+            {/* 임시저장 글 미리보기 안내 (관리자에게만 보이는 화면) */}
+            {column.isPublished === false && (
+              <div class="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-gold bg-gold-soft px-4 py-3 text-sm text-navy">
+                <span class="font-bold">
+                  <i class="fas fa-file-pen text-gold mr-1.5"></i>임시저장된 글 미리보기
+                </span>
+                <span class="text-ink/70">방문자에게는 보이지 않습니다. 수정 화면에서 '발행하기'를 누르면 공개됩니다.</span>
+              </div>
+            )}
+
             {/* breadcrumb */}
             <nav aria-label="breadcrumb" class="text-sm text-ink/50 mb-5">
               <a href="/" class="hover:text-brand transition">홈</a>
@@ -269,6 +331,9 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, b
               dangerouslySetInnerHTML={{ __html: column.content }}
             />
 
+            {/* 관리자에게만: 검색엔진이 이 글에서 읽는 정보 (SEO 최적화가 실제로 반영됐는지 확인용) */}
+            {isAdmin && <AdminSeoBox column={column} baseUrl={baseUrl} />}
+
             {/* 목록으로 돌아가기 */}
             <div class="mt-12 pt-8 border-t border-gold/30">
               <a
@@ -330,6 +395,7 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, b
         </section>
       </main>
       <SiteFooter />
+      <FloatingConsult />
       <CommonScript />
       {isAdmin && <script src="/static/column-admin.js"></script>}
     </>

@@ -108,6 +108,35 @@ export const SiteFooter: FC = () => (
   </footer>
 )
 
+// ===== 오른쪽에 떠 있는 상담 버튼 (방문자가 보는 페이지 공용, 관리자 화면에는 넣지 않음) =====
+// 주소·번호를 바꾸려면 아래 값만 고치면 됩니다
+const KAKAO_CHAT_URL = 'https://pf.kakao.com/_QLxaPxj/chat'
+const NAVER_TALK_URL = 'https://talk.naver.com/WXK4RB9' // 비워 두면 상담신청 폼으로 이동
+const PHONE_DISPLAY = '031-8027-2888'
+const PHONE_TEL = 'tel:03180272888'
+
+export const FloatingConsult: FC = () => (
+  <aside class="floating-consult" aria-label="빠른 상담">
+    <a class="fc-item" href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer">
+      <span class="fc-icon fc-kakao"><i class="fas fa-comment" aria-hidden="true"></i></span>
+      <span class="fc-label">카톡 상담</span>
+    </a>
+    <a
+      class="fc-item"
+      href={NAVER_TALK_URL || '/#consult'}
+      {...(NAVER_TALK_URL ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+    >
+      <span class="fc-icon fc-naver" aria-hidden="true">N</span>
+      <span class="fc-label">네이버톡톡</span>
+    </a>
+    <a class="fc-item" href={PHONE_TEL} aria-label={`전화 상담 ${PHONE_DISPLAY}`}>
+      <span class="fc-icon fc-phone"><i class="fas fa-phone" aria-hidden="true"></i></span>
+      <span class="fc-label">전화 상담</span>
+      <span class="fc-tip" aria-hidden="true">{PHONE_DISPLAY}</span>
+    </a>
+  </aside>
+)
+
 // ===== 공통 스크립트 (이메일 난독화 해제, 헤더 스크롤 그림자) =====
 export const CommonScript: FC = () => (
   <script src="/static/app.js"></script>

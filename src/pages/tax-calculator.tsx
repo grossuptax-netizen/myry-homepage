@@ -1,5 +1,5 @@
 import type { FC } from 'hono/jsx'
-import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
+import { SiteHeader, SiteFooter, CommonScript, FloatingConsult } from '../components/layout'
 
 // ===== 세금계산기 페이지 (준비 중 플레이스홀더) =====
 // 사용자 요청: "세금계산기부분은 나중에 따로 기능을 만들거야"
@@ -72,6 +72,7 @@ export const TaxCalculatorPage: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
       </main>
 
       <SiteFooter />
+      <FloatingConsult />
       <CommonScript />
     </body>
   </html>

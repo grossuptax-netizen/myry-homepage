@@ -122,11 +122,29 @@ JSON Body: `name`(필수), `phone`(필수), `business`(선택), `message`(선택
 | `SESSION_SECRET` | HMAC 서명용 임의 비밀키 (미설정 시 CLIENT_SECRET 사용, 둘 다 없으면 로그인 불가) | 권장 |
 | `ALLOWED_GOOGLE_EMAILS` | 초기 부트스트랩용 콤마 구분 이메일 (D1 비어있을 때만 사용) | 선택 |
 | `OAUTH_REDIRECT_BASE` | OAuth 리다이렉트 기본 URL (미설정 시 요청 호스트 추출) | 선택 |
-| `CLOUDINARY_API_KEY` | Cloudinary API Key — 관리자 전용 서명 업로드 | 권장 |
-| `CLOUDINARY_API_SECRET` | Cloudinary API Secret — 관리자 전용 서명 업로드 | 권장 |
+| `CLOUDINARY_API_KEY` | Cloudinary API Key — 관리자 전용 서명 업로드 · 네이버 사진 옮기기 | 권장 |
+| `CLOUDINARY_API_SECRET` | Cloudinary API Secret — 관리자 전용 서명 업로드 · 네이버 사진 옮기기 | 권장 |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name (미설정 시 `vxqu6qlr`) | 선택 |
+| `SITE_NOINDEX` | `1` 이면 모든 페이지 검색엔진 수집 제외 (시연용 사이트 전용) | 선택 |
 
 > Cloudinary 키 두 개를 등록한 뒤 Cloudinary 콘솔에서 `jung6tax_upload` preset 을 **Signed** 로 바꾸면
 > 관리자 외에는 이미지를 올릴 수 없습니다. (키 미등록 시에는 기존처럼 unsigned 업로드로 동작)
+> 키가 있으면 모든 사진은 Cloudinary `jung6tax` 폴더로 올라갑니다 (호텔 홈페이지는 `myhoteltax`).
+
+### 네이버 글 담기 수신 (북마클릿)
+- 규격: `window.open(SITE + '/#naver-clip')` + `postMessage` / ack `{ type: 'myry-naver-clip-ack', id }`
+- 수신: `public/static/naver-clip.js` (모든 페이지 `<head>`) → `sessionStorage('myryNaverClip')` 보관 → `/admin/column/new` 에서 채움
+  (로그인 전이면 로그인 화면에 안내, 로그인 후 자동으로 이어서 채움)
+- 채우기: `public/static/admin.js` 의 `applyNaverClip` — 원본 주소 중복 확인, 제목(비어 있을 때만), 정육점 카페 꼬리말 빼기(되돌리기 가능), 본문 정리, 사진 옮기기
+- 사진: `POST /api/admin/cloudinary/import` (`src/lib/cloudinary.ts`) — 서버가 Referer 없이 큰 판부터 받아 `jung6tax` 폴더로 서명 업로드
+- 원본 주소: `columns.source_url` (마이그레이션 `0003_columns_source_url.sql` 필요)
+
+### 글쓰기 SEO 점검
+- 핵심 검색어: `columns.focus_keyword` (마이그레이션 `0004_columns_focus_keyword.sql` 필요) — 화면에는 표시하지 않고 점검 기준으로만 사용
+- 글쓰기 화면 SEO 설정 칸의 'SEO 점검': 검색어(제목·메타 타이틀·메타 설명·첫 문단·소제목·본문 횟수), 본문 길이, 소제목 수, 사진 설명(alt), 대표 사진, 링크, 메타 길이, 슬러그를 실시간 점검해 점수 표시
+- 저장할 때 설명(alt)이 빠진 본문 사진은 제목으로 자동 채움
+
+> 실제 사이트 배포 시 D1 에 `0003`, `0004` 마이그레이션을 적용해야 합니다: `npx wrangler d1 migrations apply <DB 이름> --remote`
 
 ### Google Cloud Console 설정
 1. [Google Cloud Console](https://console.cloud.google.com/) → OAuth 2.0 Client ID 생성 (웹 애플리케이션)

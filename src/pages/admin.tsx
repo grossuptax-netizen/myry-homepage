@@ -141,14 +141,6 @@ export const AdminColumnListPage: FC<AdminColumnListPageProps> = ({ columns, use
             <p class="mt-1 text-sm text-ink/60">총 {columns.length}개의 칼럼</p>
           </div>
           <div class="flex items-center gap-3">
-            <button
-              type="button"
-              id="admin-seed-btn"
-              class="inline-flex items-center gap-2 text-sm font-bold text-navy hover:text-brand transition bg-cream-soft border border-gold/40 px-4 py-2.5 rounded-full"
-              title="더미 칼럼 18개를 데이터베이스에 삽입합니다"
-            >
-              <i class="fas fa-database"></i> 더미 데이터 시드
-            </button>
             <a
               href="/admin/column/new"
               class="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white text-sm font-bold px-5 py-2.5 rounded-full transition shadow-md shadow-brand/30 ring-1 ring-gold/50"
@@ -181,12 +173,23 @@ export const AdminColumnListPage: FC<AdminColumnListPageProps> = ({ columns, use
                       </span>
                     </td>
                     <td class="px-4 py-3">
-                      <a
-                        href={`/column/${col.category}/${col.slug}`}
-                        class="font-medium text-navy hover:text-brand transition line-clamp-1"
-                      >
-                        {col.title}
-                      </a>
+                      <div class="flex items-center gap-2">
+                        {col.isPublished === false && (
+                          <span class="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-navy bg-gold-soft border border-gold/60 px-2 py-0.5 rounded-full">
+                            <i class="fas fa-file-pen text-gold"></i> 임시저장
+                          </span>
+                        )}
+                        <a
+                          href={
+                            col.isPublished === false
+                              ? `/admin/column/edit/${col.id}`
+                              : `/column/${col.category}/${col.slug}`
+                          }
+                          class="font-medium text-navy hover:text-brand transition line-clamp-1"
+                        >
+                          {col.title}
+                        </a>
+                      </div>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-ink/70">{col.author}</td>
                     <td class="px-4 py-3 whitespace-nowrap text-ink/70">{col.publishedAt}</td>
@@ -222,6 +225,160 @@ export const AdminColumnListPage: FC<AdminColumnListPageProps> = ({ columns, use
 )
 
 // ===== 관리자 칼럼 작성/수정 폼 페이지 =====
+// ===== 글쓰기 툴바 (네이버 스마트에디터처럼) =====
+// [본문▾][기본서체▾][15▾] | B I U S | 글자색 배경색 | 정렬▾ 줄간격▾ | ※ 링크 | 목록 사진 표
+// 동작은 admin.js 의 '글쓰기 툴바' 부분 (드롭다운은 data-menu, 메뉴 항목은 data-action/data-value)
+const TOOLBAR_PARA = [
+  { value: 'p', label: '본문', cls: 'text-sm' },
+  { value: 'h2', label: '소제목', cls: 'text-lg font-black' },
+  { value: 'h3', label: '작은 소제목', cls: 'text-base font-bold' },
+  { value: 'blockquote', label: '인용구', cls: 'text-sm italic border-l-4 border-gold pl-2' },
+]
+const TOOLBAR_FONTS = [
+  { value: '', label: '기본서체' },
+  { value: "'Nanum Gothic'", label: '나눔고딕' },
+  { value: "'Nanum Myeongjo'", label: '나눔명조' },
+  { value: "'Gowun Dodum'", label: '고운돋움' },
+  { value: "'Gowun Batang'", label: '고운바탕' },
+  { value: "'Nanum Pen Script'", label: '나눔손글씨 펜' },
+]
+const TOOLBAR_SIZES = [11, 13, 15, 16, 19, 24, 28, 30, 34, 38]
+const TOOLBAR_TEXT_COLORS = [
+  '#000000', '#555555', '#888888', '#bbbbbb', '#ff0010', '#ff6c00', '#ffb400', '#00a84b',
+  '#00b2f0', '#0c3fdf', '#8e00ff', '#ff00a6', '#8b1a1a', '#1a2a4a', '#a88a35', '#6b4226',
+]
+const TOOLBAR_BG_COLORS = [
+  '#fff1a8', '#ffe1c2', '#ffd6d6', '#ffd6f3', '#e9dcff', '#d6e4ff', '#d4f3ff', '#d4f5dc',
+  '#fff200', '#ffc000', '#ff9c9c', '#a8e6ff', '#b8f0a8', '#e0e0e0',
+]
+const TOOLBAR_ALIGNS = [
+  { value: 'justifyLeft', icon: 'fa-align-left', label: '왼쪽 정렬' },
+  { value: 'justifyCenter', icon: 'fa-align-center', label: '가운데 정렬' },
+  { value: 'justifyRight', icon: 'fa-align-right', label: '오른쪽 정렬' },
+  { value: 'justifyFull', icon: 'fa-align-justify', label: '양쪽 정렬' },
+]
+const TOOLBAR_LINE_HEIGHTS = ['150%', '180%', '200%', '250%']
+const TOOLBAR_SYMBOLS = '※ ★ ☆ ● ○ ◎ ■ □ ◆ ◇ ▲ △ ▶ ▷ ▼ ▽ ✔ ✓ ✗ ♥ ☎ → ← ↑ ↓ ⇒ ① ② ③ ④ ⑤ ⑥ ⑦ ⑧ ⑨ ⑩ · … ℃ ㎡ ㎏ ％ 「 」 『 』 【 】'.split(' ')
+
+const ToolbarSep: FC = () => <span class="tb-sep" aria-hidden="true"></span>
+
+const EditorToolbar: FC = () => (
+  <div id="editor-toolbar" class="relative flex flex-wrap items-center gap-0.5 mb-2 rounded-lg border border-navy/10 bg-white px-1 py-1">
+    {/* 문단 스타일 */}
+    <div class="relative">
+      <button type="button" class="tb-drop" data-menu="tb-menu-para" title="문단 스타일">
+        <span id="tb-para-label">본문</span> <i class="fas fa-chevron-down tb-caret"></i>
+      </button>
+      <div id="tb-menu-para" class="tb-menu hidden">
+        {TOOLBAR_PARA.map((p) => (
+          <button type="button" class={`tb-item ${p.cls}`} data-action="para" data-value={p.value}>{p.label}</button>
+        ))}
+      </div>
+    </div>
+    {/* 글꼴 */}
+    <div class="relative">
+      <button type="button" class="tb-drop" data-menu="tb-menu-font" title="글꼴">
+        <span id="tb-font-label">기본서체</span> <i class="fas fa-chevron-down tb-caret"></i>
+      </button>
+      <div id="tb-menu-font" class="tb-menu hidden">
+        {TOOLBAR_FONTS.map((f) => (
+          <button type="button" class="tb-item" data-action="font" data-value={f.value} style={f.value ? `font-family:${f.value}` : ''}>{f.label}</button>
+        ))}
+      </div>
+    </div>
+    {/* 글자 크기 */}
+    <div class="relative">
+      <button type="button" class="tb-drop" data-menu="tb-menu-size" title="글자 크기">
+        <span id="tb-size-label">15</span> <i class="fas fa-chevron-down tb-caret"></i>
+      </button>
+      <div id="tb-menu-size" class="tb-menu tb-menu-narrow hidden">
+        {TOOLBAR_SIZES.map((s) => (
+          <button type="button" class="tb-item" data-action="size" data-value={String(s)}>{s}</button>
+        ))}
+      </div>
+    </div>
+    <ToolbarSep />
+    {/* 굵게 · 기울임 · 밑줄 · 취소선 */}
+    <button type="button" class="tb-btn" data-cmd="bold" title="굵게"><i class="fas fa-bold"></i></button>
+    <button type="button" class="tb-btn" data-cmd="italic" title="기울임"><i class="fas fa-italic"></i></button>
+    <button type="button" class="tb-btn" data-cmd="underline" title="밑줄"><i class="fas fa-underline"></i></button>
+    <button type="button" class="tb-btn" data-cmd="strikeThrough" title="취소선"><i class="fas fa-strikethrough"></i></button>
+    {/* 글자색 */}
+    <div class="relative">
+      <button type="button" class="tb-btn tb-drop-btn" data-menu="tb-menu-color" title="글자색">
+        <span class="tb-t">T<span id="tb-color-bar" class="tb-colorbar"></span></span>
+      </button>
+      <div id="tb-menu-color" class="tb-menu tb-palette hidden">
+        <button type="button" class="tb-item tb-palette-reset" data-action="color" data-value="">기본 글자색</button>
+        <div class="tb-swatches">
+          {TOOLBAR_TEXT_COLORS.map((c) => (
+            <button type="button" class="tb-swatch" data-action="color" data-value={c} style={`background:${c}`} title={c}></button>
+          ))}
+        </div>
+      </div>
+    </div>
+    {/* 배경색 (형광펜) */}
+    <div class="relative">
+      <button type="button" class="tb-btn tb-drop-btn" data-menu="tb-menu-bg" title="배경색 (형광펜)">
+        <span class="tb-t tb-t-box">T</span>
+      </button>
+      <div id="tb-menu-bg" class="tb-menu tb-palette hidden">
+        <button type="button" class="tb-item tb-palette-reset" data-action="bg" data-value="">배경색 없음</button>
+        <div class="tb-swatches">
+          {TOOLBAR_BG_COLORS.map((c) => (
+            <button type="button" class="tb-swatch" data-action="bg" data-value={c} style={`background:${c}`} title={c}></button>
+          ))}
+        </div>
+      </div>
+    </div>
+    <ToolbarSep />
+    {/* 정렬 */}
+    <div class="relative">
+      <button type="button" class="tb-btn tb-drop-btn" data-menu="tb-menu-align" title="정렬">
+        <i id="tb-align-icon" class="fas fa-align-left"></i>
+      </button>
+      <div id="tb-menu-align" class="tb-menu tb-menu-narrow hidden">
+        {TOOLBAR_ALIGNS.map((a) => (
+          <button type="button" class="tb-item" data-action="align" data-value={a.value} data-icon={a.icon}>
+            <i class={`fas ${a.icon} mr-2`}></i>{a.label}
+          </button>
+        ))}
+      </div>
+    </div>
+    {/* 줄간격 */}
+    <div class="relative">
+      <button type="button" class="tb-btn tb-drop-btn" data-menu="tb-menu-lh" title="줄간격">
+        <i class="fas fa-arrows-up-down"></i>
+      </button>
+      <div id="tb-menu-lh" class="tb-menu tb-menu-narrow hidden">
+        {TOOLBAR_LINE_HEIGHTS.map((v) => (
+          <button type="button" class="tb-item" data-action="lh" data-value={v}>{v}</button>
+        ))}
+      </div>
+    </div>
+    <ToolbarSep />
+    {/* 특수문자 */}
+    <div class="relative">
+      <button type="button" class="tb-btn tb-drop-btn" data-menu="tb-menu-symbol" title="특수문자">※</button>
+      <div id="tb-menu-symbol" class="tb-menu tb-palette hidden">
+        <div class="tb-symbols">
+          {TOOLBAR_SYMBOLS.map((s) => (
+            <button type="button" class="tb-symbol" data-action="symbol" data-value={s}>{s}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+    {/* 링크 */}
+    <button type="button" class="tb-btn" id="tb-link" title="링크"><i class="fas fa-link"></i></button>
+    <ToolbarSep />
+    {/* 목록 · 사진 · 표 */}
+    <button type="button" class="tb-btn" data-cmd="insertUnorderedList" title="글머리 기호"><i class="fas fa-list-ul"></i></button>
+    <button type="button" class="tb-btn" data-cmd="insertOrderedList" title="번호 매기기"><i class="fas fa-list-ol"></i></button>
+    <button type="button" class="tb-btn" id="insert-image-btn" title="사진 넣기"><i class="fas fa-image"></i></button>
+    <button type="button" class="tb-btn" id="insert-table-btn" title="표 넣기"><i class="fas fa-table"></i></button>
+  </div>
+)
+
 interface AdminColumnFormPageProps {
   mode: 'new' | 'edit'
   column?: Column // 수정 모드일 때 기존 칼럼 데이터 (라우트에서 D1 조회 후 전달)
@@ -230,6 +387,8 @@ interface AdminColumnFormPageProps {
 export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column }) => {
   const isEdit = mode === 'edit'
   const col = isEdit ? column : undefined
+  // 새 글이거나 임시저장 글이면 '임시저장' + '발행하기', 이미 공개된 글이면 '수정 완료'만
+  const canDraft = !col || col.isPublished === false
 
   return (
     <>
@@ -252,8 +411,10 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
           </div>
 
           {/* 작성 폼 */}
-          <form id="column-form" class="space-y-6">
+          <form id="column-form" class="space-y-6" data-published={col?.isPublished === false || !col ? '0' : '1'}>
             <input type="hidden" name="id" value={col?.id ?? ''} />
+            {/* 네이버 글 담기로 가져온 글의 원본 주소 (columns.source_url) */}
+            <input type="hidden" name="source_url" value={col?.sourceUrl ?? ''} />
 
             {/* 제목 */}
             <div class="bg-white rounded-2xl border border-gold/30 p-6 shadow-sm">
@@ -309,9 +470,42 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
 
             {/* 본문 (리치 텍스트) */}
             <div class="bg-white rounded-2xl border border-gold/30 p-6 shadow-sm">
-              <label class="block text-sm font-bold mb-2 text-navy" for="f-content">
-                본문 <span class="text-brand">*</span>
-              </label>
+              {/* 본문 제목 줄: 왼쪽 '본문', 오른쪽 마지막 임시저장 시각 + 임시저장 버튼 */}
+              <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-2">
+                <label class="block text-sm font-bold text-navy" for="f-content">
+                  본문 <span class="text-brand">*</span>
+                </label>
+                {canDraft && (
+                  <div class="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                    <p
+                      id="draft-status"
+                      class="text-xs sm:text-sm text-ink/60"
+                      data-saved-at={col?.savedAt ?? ''}
+                      data-preview-url={col ? `/column/${col.category}/${col.slug}` : ''}
+                    ></p>
+                    {/* 왼쪽: 임시저장 / 오른쪽 숫자: 임시저장 글 목록 열기 */}
+                    <div class="inline-flex items-stretch bg-white rounded-full border border-navy/20 overflow-hidden text-sm font-bold">
+                      <button
+                        type="button"
+                        id="column-draft-btn"
+                        class="inline-flex items-center gap-2 text-navy hover:bg-cream-soft pl-4 pr-3 py-2 transition"
+                      >
+                        <i class="fas fa-floppy-disk"></i> 임시저장
+                      </button>
+                      <span class="w-px my-2 bg-navy/20" aria-hidden="true"></span>
+                      <button
+                        type="button"
+                        id="draft-list-btn"
+                        class="inline-flex items-center pl-3 pr-4 py-2 text-green-600 hover:bg-cream-soft transition"
+                        title="임시저장 글 보기"
+                        aria-haspopup="dialog"
+                      >
+                        <span id="draft-count">0</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <p class="text-xs text-ink/50 mb-3">
                 <i class="fas fa-info-circle text-gold mr-1"></i>
                 텍스트, 이미지, 표를 삽입할 수 있습니다. 소제목은 H2/H3 태그로 구조화하세요.
@@ -319,38 +513,12 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
                 <i class="fas fa-paste text-gold mr-1"></i>
                 네이버 카페·블로그 글을 붙여넣으면 서식이 자동 정리되고, 이미지는 Cloudinary로 자동 업로드됩니다.
               </p>
+              {/* 네이버 글 담기로 가져온 글 안내 (원본 주소, 꼬리말 정리 + 되돌리기) */}
+              <div id="clip-status" class="hidden"></div>
               {/* 붙여넣은 이미지 업로드 진행/실패 안내 */}
               <p id="paste-status" class="hidden"></p>
-              {/* 간단한 툴바 */}
-              <div class="flex flex-wrap gap-1 mb-2 border-b border-navy/10 pb-2">
-                <button type="button" class="format-btn" data-cmd="bold" title="굵게">
-                  <i class="fas fa-bold"></i>
-                </button>
-                <button type="button" class="format-btn" data-cmd="italic" title="기울임">
-                  <i class="fas fa-italic"></i>
-                </button>
-                <button type="button" class="format-btn" data-cmd="formatBlock" data-val="h2" title="소제목 H2">
-                  H2
-                </button>
-                <button type="button" class="format-btn" data-cmd="formatBlock" data-val="h3" title="소제목 H3">
-                  H3
-                </button>
-                <button type="button" class="format-btn" data-cmd="insertUnorderedList" title="글머리 기호">
-                  <i class="fas fa-list-ul"></i>
-                </button>
-                <button type="button" class="format-btn" data-cmd="insertOrderedList" title="번호 매기기">
-                  <i class="fas fa-list-ol"></i>
-                </button>
-                <button type="button" class="format-btn" data-cmd="formatBlock" data-val="blockquote" title="인용구">
-                  <i class="fas fa-quote-right"></i>
-                </button>
-                <button type="button" class="format-btn" id="insert-image-btn" title="이미지 삽입">
-                  <i class="fas fa-image"></i>
-                </button>
-                <button type="button" class="format-btn" id="insert-table-btn" title="표 삽입">
-                  <i class="fas fa-table"></i>
-                </button>
-              </div>
+              {/* 툴바 (네이버 스마트에디터 배치) */}
+              <EditorToolbar />
               {/* 숨겨진 이미지 업로드 input */}
               <input type="file" id="content-image-input" accept="image/*" class="hidden" />
               {/* contentEditable 영역 */}
@@ -362,6 +530,50 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
               />
               {/* 실제 제출용 hidden input */}
               <input type="hidden" name="content" id="f-content-hidden" value="" />
+
+              {/* '네이버 글 담기' 즐겨찾기 버튼(북마클릿) 설치 안내 */}
+              <details class="mt-4 rounded-xl border border-green-200 bg-green-50/60 text-sm text-ink/80">
+                <summary class="cursor-pointer px-4 py-3 font-bold text-green-800">
+                  <i class="fas fa-bookmark mr-1.5"></i> 네이버 카페·블로그 글 가져오기 — ‘네이버 글 담기’ 즐겨찾기 버튼 설치
+                </summary>
+                <div class="px-4 pb-4 leading-relaxed">
+                  <p>
+                    내 네이버 로그인으로 글을 읽어 <b>회원 전용 카페 글</b>도 가져옵니다. 사진은 스크롤하지 않아도 모두 들어오고,
+                    정육점 Cloudinary 로 옮겨집니다.
+                  </p>
+                  <p class="my-3 flex flex-wrap items-center gap-3">
+                    <a
+                      id="clipBookmarklet"
+                      href="#"
+                      title="즐겨찾기 막대로 끌어다 놓으세요"
+                      class="inline-flex items-center gap-1.5 rounded-lg bg-green-700 px-4 py-2 font-bold text-white no-underline cursor-grab"
+                    >
+                      <i class="fas fa-bookmark"></i> 네이버 글 담기
+                    </a>
+                    <span>← 이 버튼을 즐겨찾기 막대로 끌어다 놓으세요</span>
+                  </p>
+                  <ol class="ml-5 list-decimal space-y-1">
+                    <li>크롬·엣지에서 <b>Ctrl + Shift + B</b> 를 눌러 주소창 아래에 즐겨찾기 막대가 보이게 합니다.</li>
+                    <li>위의 초록색 <b>네이버 글 담기</b> 버튼을 마우스로 꾹 눌러 즐겨찾기 막대 위로 끌어다 놓습니다.</li>
+                    <li>네이버에 로그인한 뒤 가져올 카페·블로그 글을 엽니다.</li>
+                    <li>
+                      즐겨찾기 막대의 <b>네이버 글 담기</b>를 누르면 네이버 화면 오른쪽 위에 상자가 뜹니다.
+                      <b>정육점 홈페이지로 보내기</b>를 누르면 이 홈페이지 글쓰기가 새 탭으로 열리고 제목·본문·사진이 자동으로 들어갑니다.
+                    </li>
+                  </ol>
+                  <p class="mt-2 text-ink/60">
+                    끌어다 놓기가 안 되면:{' '}
+                    <button type="button" id="clipCopyCode" class="rounded border border-green-700/40 bg-white px-2 py-0.5 text-xs font-bold text-green-800">
+                      버튼 코드 복사
+                    </button>{' '}
+                    → 즐겨찾기 막대 빈 곳을 오른쪽 클릭 → ‘페이지 추가’(엣지: ‘즐겨찾기 추가’) → 이름에 <b>네이버 글 담기</b>, URL 칸에 Ctrl+V → 저장
+                  </p>
+                  <p class="mt-1 text-ink/60">
+                    ‘정육점 홈페이지로 보내기’는 <b id="clipSite"></b> 으로, ‘호텔 홈페이지로 보내기’는 <b>https://myhoteltax.com</b> 으로 보냅니다.
+                    실제 홈페이지용 버튼은 실제 홈페이지(jung6tax.com) 글쓰기 화면에서 다시 끌어다 놓으세요.
+                  </p>
+                </div>
+              </details>
             </div>
 
             {/* 대표 썸네일 이미지 */}
@@ -467,10 +679,12 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
                 id="f-excerpt"
                 name="excerpt"
                 rows={2}
-                value={col?.excerpt ?? ''}
                 placeholder="목록 페이지 카드에 표시될 요약문"
                 class="w-full rounded-xl border border-navy/15 bg-cream-soft px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition resize-none"
-              />
+              >
+                {/* textarea 는 value 속성이 아니라 안쪽 글자로 기존 값을 넣어야 수정 화면에 보임 */}
+                {col?.excerpt ?? ''}
+              </textarea>
             </div>
 
             {/* SEO 설정 */}
@@ -482,7 +696,46 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
                 검색 결과와 카카오톡 공유 미리보기에 표시되는 정보입니다. 비워 두면 자동으로 채워집니다.
               </p>
 
+              {/* SEO 최적화 적용 (붙여넣은 기존 글을 한 번에 최적화) */}
+              <div class="mb-6 rounded-xl border border-gold/50 bg-gold/10 p-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div class="text-sm text-white/80">
+                    <p class="font-bold text-white">기존 글을 붙여넣었다면 한 번에 최적화하세요</p>
+                    <p class="text-xs text-white/60 mt-0.5">
+                      소제목 만들기 · 핵심 검색어 추천 · 메타 타이틀/설명 · 한 줄 요약 · 영문 주소 · 사진 설명 (본문 문장은 바꾸지 않음)
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    id="seo-optimize-btn"
+                    class="shrink-0 inline-flex items-center gap-2 rounded-full bg-gold hover:bg-gold-dark px-5 py-2.5 text-sm font-black text-navy shadow-md transition"
+                  >
+                    <i class="fas fa-wand-magic-sparkles"></i> SEO 최적화 적용
+                  </button>
+                </div>
+                <div id="seo-optimize-result" class="hidden mt-3 rounded-lg bg-navy-dark/60 px-4 py-3 text-sm text-white/90"></div>
+              </div>
+
               <div class="space-y-5">
+                {/* 핵심 검색어 (SEO 점검 기준) */}
+                <div>
+                  <label class="block text-sm font-bold mb-2 text-white" for="f-focus-keyword">
+                    핵심 검색어
+                  </label>
+                  <input
+                    id="f-focus-keyword"
+                    name="focus_keyword"
+                    type="text"
+                    maxlength={50}
+                    value={col?.focusKeyword ?? ''}
+                    placeholder="이 글로 검색되고 싶은 말 (예: 해고예고수당, 정육점 의무교육)"
+                    class="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition"
+                  />
+                  <p class="mt-1 text-xs text-white/40">
+                    사장님들이 실제로 검색할 만한 말 1개. 아래 'SEO 점검'이 이 검색어를 기준으로 확인합니다. (화면에는 표시되지 않음)
+                  </p>
+                </div>
+
                 {/* 메타 타이틀 */}
                 <div>
                   <label class="block text-sm font-bold mb-2 text-white" for="f-meta-title">
@@ -511,10 +764,11 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
                     name="meta_description"
                     rows={3}
                     maxlength={160}
-                    value={col?.metaDescription ?? ''}
                     placeholder="미입력 시 '한 줄 요약' → 본문 앞부분 순으로 자동 사용"
                     class="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition resize-none"
-                  />
+                  >
+                    {col?.metaDescription ?? ''}
+                  </textarea>
                   <p class="mt-1 text-xs text-white/40">
                     <span id="meta-desc-count">{col?.metaDescription?.length ?? 0}</span>/160자 · 권장 80~120자
                   </p>
@@ -534,6 +788,30 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
                   </div>
                   <p id="seo-preview-warn" class="mt-2 text-xs text-gold hidden"></p>
                 </div>
+
+                {/* SEO 점검 (입력 내용에 따라 실시간 갱신) */}
+                <div class="rounded-xl bg-white/5 border border-white/15 p-4">
+                  <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <p class="text-sm font-bold text-white">
+                      <i class="fas fa-clipboard-check text-gold mr-1.5"></i>SEO 점검
+                    </p>
+                    <p class="text-sm">
+                      <span id="seo-score" class="inline-flex items-center rounded-full px-3 py-0.5 font-black bg-white/10 text-white">-</span>
+                    </p>
+                  </div>
+                  <ul id="seo-checklist" class="space-y-1.5 text-sm"></ul>
+                  <div class="mt-4 flex flex-wrap gap-2">
+                    <button type="button" id="seo-fix-alt" class="rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/10 transition">
+                      <i class="fas fa-image mr-1"></i>사진 설명(alt) 자동 채우기
+                    </button>
+                    <button type="button" id="seo-fix-desc" class="rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/10 transition">
+                      <i class="fas fa-align-left mr-1"></i>요약으로 메타 설명 채우기
+                    </button>
+                  </div>
+                  <p class="mt-3 text-xs text-white/40">
+                    점검은 참고용입니다. 모두 초록색이 아니어도 저장·발행할 수 있어요. 설명이 빠진 사진은 저장할 때 제목으로 자동 채워집니다.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -541,6 +819,7 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
             <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
               <a
                 href="/admin/column"
+                id="column-back-link"
                 class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-cream-soft text-navy font-bold px-6 py-3.5 rounded-full transition border border-navy/20"
               >
                 <i class="fas fa-arrow-left"></i> 목록으로
@@ -550,10 +829,33 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
                 id="column-submit-btn"
                 class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark text-white font-bold px-8 py-3.5 rounded-full transition shadow-lg shadow-brand/30 ring-1 ring-gold/50"
               >
-                <i class="fas fa-save"></i> {isEdit ? '칼럼 수정 완료' : '칼럼 저장'}
+                <i class={`fas ${canDraft ? 'fa-paper-plane' : 'fa-save'}`}></i> {canDraft ? '발행하기' : '칼럼 수정 완료'}
               </button>
             </div>
           </form>
+
+          {/* 임시저장 글 창 (임시저장 옆 숫자를 누르면 열림) */}
+          {canDraft && (
+            <div id="draft-modal" class="hidden fixed inset-0 z-[60] items-center justify-center bg-black/30 px-4" role="dialog" aria-modal="true" aria-labelledby="draft-modal-title">
+              <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-navy/10 overflow-hidden">
+                <div class="flex items-start justify-between px-6 pt-6">
+                  <h2 id="draft-modal-title" class="text-2xl font-black text-navy">임시저장 글</h2>
+                  <button type="button" id="draft-modal-close" class="text-2xl leading-none text-ink/50 hover:text-navy transition" aria-label="닫기">
+                    <i class="fas fa-xmark"></i>
+                  </button>
+                </div>
+                <div class="flex items-center justify-between px-6 pt-4 pb-3 border-b border-navy/10">
+                  <p class="text-sm text-ink/60">
+                    총 <span id="draft-modal-count" class="font-bold text-green-600">0</span>개
+                  </p>
+                  <button type="button" id="draft-edit-toggle" class="text-sm font-bold text-navy border border-navy/20 rounded px-4 py-1.5 hover:bg-cream-soft transition">
+                    편집
+                  </button>
+                </div>
+                <ul id="draft-modal-list" class="max-h-[60vh] overflow-y-auto divide-y divide-navy/10 pb-3"></ul>
+              </div>
+            </div>
+          )}
         </div>
       </main>
       <SiteFooter />

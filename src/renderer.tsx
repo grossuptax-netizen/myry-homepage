@@ -82,12 +82,17 @@ export const renderer = jsxRenderer(({ children }) => {
   }`
   const ogImage = head.ogImage ?? `${origin}/static/favicon-192.png`
   const ogType = head.ogType ?? 'website'
+  // 시연용 사이트 등 SITE_NOINDEX=1 이 설정된 곳은 모든 페이지를 검색엔진 수집 제외
+  // (실제 사이트와 같은 글이 검색에서 경쟁하지 않도록)
+  const robots = c.env?.SITE_NOINDEX === '1' ? 'noindex, nofollow' : head.robots
 
   return (
     <html lang="ko">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {/* '네이버 글 담기' 수신 — 페이지가 열리자마자 메시지를 들어야 하므로 head 맨 앞에서 실행 */}
+        <script src="/static/naver-clip.js"></script>
         <title>{title}</title>
         <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png" />
         <link rel="apple-touch-icon" href="/static/favicon-192.png" />
@@ -106,7 +111,7 @@ export const renderer = jsxRenderer(({ children }) => {
         <meta name="twitter:description" content={ogDescription} />
         <meta name="twitter:image" content={ogImage} />
         {head.canonical && <link rel="canonical" href={head.canonical} />}
-        {head.robots && <meta name="robots" content={head.robots} />}
+        {robots && <meta name="robots" content={robots} />}
         {head.extraHead}
         <script src="https://cdn.tailwindcss.com"></script>
         <link
@@ -116,6 +121,11 @@ export const renderer = jsxRenderer(({ children }) => {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap"
+          rel="stylesheet"
+        />
+        {/* 칼럼 글꼴 (글쓰기 툴바의 서체 목록). 글꼴 파일은 실제로 그 서체를 쓴 글자가 있을 때만 받음 */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Gowun+Dodum&family=Gowun+Batang:wght@400;700&family=Nanum+Pen+Script&display=swap"
           rel="stylesheet"
         />
         <script dangerouslySetInnerHTML={{ __html: TAILWIND_CONFIG }} />

@@ -1,7 +1,7 @@
 import type { FC } from 'hono/jsx'
 import { CATEGORIES, getCategoryLabel, getDisplayThumbnail } from '../lib/columns'
 import type { Column } from '../lib/columns'
-import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
+import { SiteHeader, SiteFooter, CommonScript, FloatingConsult } from '../components/layout'
 
 // ===== 칼럼 카드 (목록용) =====
 const ColumnCard: FC<{ column: Column }> = ({ column }) => {
@@ -202,6 +202,7 @@ export const ColumnListPage: FC<ColumnListPageProps> = ({ activeCategory, column
         </section>
       </main>
       <SiteFooter />
+      <FloatingConsult />
       <CommonScript />
       <script src="/static/column-list.js"></script>
     </>
