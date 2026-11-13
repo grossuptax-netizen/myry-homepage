@@ -129,7 +129,7 @@ async function checkAdminAuth(c: any): Promise<{ authed: boolean; email?: string
 
 // ===== 헬퍼: 관리자 세션 쿠키 설정 (HttpOnly, 30일, https 에서는 Secure) =====
 function setSessionCookie(c: any, token: string): void {
-  const redirectBase = getRedirectBase(c.env as AppEnv, c.req.header)
+  const redirectBase = getRedirectBase(c.env as AppEnv, (name: string) => c.req.header(name))
   c.header(
     'Set-Cookie',
     `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${SESSION_MAX_AGE_SECONDS}; SameSite=Lax${redirectBase.startsWith('https://') ? '; Secure' : ''}`,
@@ -387,7 +387,7 @@ app.get('/admin/settings', async (c) => {
 
 // Google 로그인 시작 — Google 인증 페이지로 리다이렉트
 app.get('/api/auth/google', (c) => {
-  const redirectBase = getRedirectBase(c.env as AppEnv, c.req.header)
+  const redirectBase = getRedirectBase(c.env as AppEnv, (name: string) => c.req.header(name))
   if (!isOAuthConfigured(c.env as AppEnv)) {
     return c.html('<p>Google OAuth가 설정되지 않았습니다. 관리자에게 문의하세요.</p>', 500)
   }
@@ -421,7 +421,7 @@ app.get('/api/auth/google/callback', async (c) => {
     return c.redirect(`/admin/column/login?error=${msg}`)
   }
 
-  const redirectBase = getRedirectBase(c.env as AppEnv, c.req.header)
+  const redirectBase = getRedirectBase(c.env as AppEnv, (name: string) => c.req.header(name))
   const result = await exchangeCodeForToken(code, c.env as AppEnv, redirectBase)
 
   if (!result.ok || !result.email) {
