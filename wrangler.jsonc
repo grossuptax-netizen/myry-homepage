@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "webapp",
+  "name": "jung6tax",
   "compatibility_date": "2025-05-01",
   "pages_build_output_dir": "./dist",
   "compatibility_flags": [
@@ -9,8 +9,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "webapp-production",
-      "database_id": "local-dev-placeholder"
+      "database_name": "jung6tax-db",
+      "database_id": "1cb1fcad-90e0-410d-afe9-ab451f71a7c3"
     }
   ]
 }
