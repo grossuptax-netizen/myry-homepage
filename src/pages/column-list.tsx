@@ -201,7 +201,7 @@ export const ColumnListPage: FC<ColumnListPageProps> = ({ activeCategory, column
           </div>
         </section>
       </main>
-      <SiteFooter />
+      <SiteFooter isAdmin={isAdmin} />
       <FloatingConsult />
       <CommonScript />
       <script src="/static/column-list.js"></script>

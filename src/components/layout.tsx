@@ -64,8 +64,30 @@ export const SiteHeader: FC<HeaderProps> = ({ activeNav, isAdmin }) => (
   </header>
 )
 
+// ===== 하단 작은 '관리자' 링크 =====
+// 구글 로그인 후 지금 보던 페이지로 돌아오고, 그 페이지에 관리 버튼(글쓰기·수정·삭제)이 켜짐.
+// 로그인 상태에서는 '로그아웃'으로 바뀜. 로그인은 30일 유지(방문 시 자동 연장).
+const ADMIN_LINK_SCRIPT =
+  "(function(){var a=document.querySelector('[data-admin-link]');if(!a)return;" +
+  "a.href=a.getAttribute('href')+'?next='+encodeURIComponent(location.pathname+location.search);})();"
+
+export const AdminFooterLink: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
+  <>
+    {isAdmin ? (
+      <a href="/api/auth/logout" data-admin-link class="hover:text-white/80 transition">
+        <i class="fas fa-right-from-bracket mr-1"></i>로그아웃
+      </a>
+    ) : (
+      <a href="/api/auth/google" data-admin-link rel="nofollow" class="hover:text-white/80 transition">
+        관리자
+      </a>
+    )}
+    <script dangerouslySetInnerHTML={{ __html: ADMIN_LINK_SCRIPT }} />
+  </>
+)
+
 // ===== 공통 푸터 =====
-export const SiteFooter: FC = () => (
+export const SiteFooter: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
   <footer id="site-footer" class="bg-navy-dark text-white/70 py-12 border-t-2 border-gold/40">
     <div class="max-w-6xl mx-auto px-5">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
@@ -101,8 +123,10 @@ export const SiteFooter: FC = () => (
           <p><i class="fas fa-clock text-gold mr-2"></i> 평일 09:00 ~ 18:00</p>
         </div>
       </div>
-      <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/40">
-        © 2026 명륜세무회계. All rights reserved.
+      <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/40 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span>© 2026 명륜세무회계. All rights reserved.</span>
+        <span aria-hidden="true">·</span>
+        <AdminFooterLink isAdmin={isAdmin} />
       </div>
     </div>
   </footer>

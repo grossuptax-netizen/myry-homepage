@@ -215,7 +215,7 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, b
             </a>
           </div>
         </main>
-        <SiteFooter />
+        <SiteFooter isAdmin={isAdmin} />
         <FloatingConsult />
         <CommonScript />
       </>
@@ -394,7 +394,7 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, b
           </div>
         </section>
       </main>
-      <SiteFooter />
+      <SiteFooter isAdmin={isAdmin} />
       <FloatingConsult />
       <CommonScript />
       {isAdmin && <script src="/static/column-admin.js"></script>}

@@ -1,5 +1,5 @@
 import type { FC } from 'hono/jsx'
-import { FloatingConsult } from '../components/layout'
+import { FloatingConsult, AdminFooterLink } from '../components/layout'
 
 // ===== Header / 상단 네비게이션 =====
 // isAdmin: Google OAuth 로그인(grossuptax@gmail.com) 시 관리자페이지 버튼 노출
@@ -480,7 +480,7 @@ const Consult: FC = () => (
 )
 
 // ===== Footer =====
-const Footer: FC = () => (
+const Footer: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
   <footer id="site-footer" class="bg-navy-dark text-white/70 py-12 border-t-2 border-gold/40">
     <div class="max-w-6xl mx-auto px-5">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
@@ -516,8 +516,10 @@ const Footer: FC = () => (
           <p><i class="fas fa-clock text-gold mr-2"></i> 평일 09:00 ~ 18:00</p>
         </div>
       </div>
-      <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/40">
-        © 2026 명륜세무회계. All rights reserved.
+      <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/40 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span>© 2026 명륜세무회계. All rights reserved.</span>
+        <span aria-hidden="true">·</span>
+        <AdminFooterLink isAdmin={isAdmin} />
       </div>
     </div>
   </footer>
@@ -538,7 +540,7 @@ export const Home: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
       <Reviews />
       <Consult />
     </main>
-    <Footer />
+    <Footer isAdmin={isAdmin} />
     <FloatingConsult />
     <script src="/static/app.js"></script>
   </>

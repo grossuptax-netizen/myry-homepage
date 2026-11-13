@@ -71,7 +71,7 @@ export const TaxCalculatorPage: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
         </section>
       </main>
 
-      <SiteFooter />
+      <SiteFooter isAdmin={isAdmin} />
       <FloatingConsult />
       <CommonScript />
     </body>

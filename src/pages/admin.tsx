@@ -218,7 +218,7 @@ export const AdminColumnListPage: FC<AdminColumnListPageProps> = ({ columns, use
         </div>
       </div>
     </main>
-    <SiteFooter />
+    <SiteFooter isAdmin />
     <CommonScript />
     <script src="/static/admin.js"></script>
   </>
@@ -861,7 +861,7 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
           )}
         </div>
       </main>
-      <SiteFooter />
+      <SiteFooter isAdmin />
       <CommonScript />
       <script src="/static/admin.js"></script>
     </>
@@ -1078,7 +1078,7 @@ export const AdminSettingsPage: FC<AdminSettingsPageProps> = ({
         </div>
       </div>
     </main>
-    <SiteFooter />
+    <SiteFooter isAdmin />
     <CommonScript />
     <script src="/static/admin.js"></script>
   </>

@@ -137,7 +137,7 @@ export function getGoogleAuthUrl(env: AppEnv, redirectBase: string, state: strin
     response_type: 'code',
     scope: 'openid email profile',
     access_type: 'online',
-    prompt: 'select_account',
+    // prompt 생략: 브라우저에 구글 계정이 하나만 로그인돼 있으면 계정 선택 없이 바로 통과
     state,
   })
 

@@ -386,17 +386,34 @@ app.get('/admin/settings', async (c) => {
 // ===== Google OAuth 인증 라우트 =====
 
 // Google 로그인 시작 — Google 인증 페이지로 리다이렉트
+// 로그인/로그아웃 후 돌아갈 주소 — 같은 사이트 안의 경로만 허용 (외부 주소로 튕기는 것 방지)
+function safeNextPath(raw: string | undefined | null): string | null {
+  if (!raw) return null
+  let v = raw
+  try { v = decodeURIComponent(raw) } catch { return null }
+  if (v.length > 500 || !v.startsWith('/') || v.startsWith('//') || v.includes('\\') || /[\x00-\x1f]/.test(v)) return null
+  if (v.startsWith('/api/')) return null
+  return v
+}
+
 app.get('/api/auth/google', (c) => {
   const redirectBase = getRedirectBase(c.env as AppEnv, (name: string) => c.req.header(name))
   if (!isOAuthConfigured(c.env as AppEnv)) {
     return c.html('<p>Google OAuth가 설정되지 않았습니다. 관리자에게 문의하세요.</p>', 500)
   }
+  const secure = redirectBase.startsWith('https://') ? '; Secure' : ''
   // 로그인 CSRF 방지용 state — 10분간 유효한 쿠키에 저장 후 콜백에서 대조
   const state = createOAuthState()
-  c.header(
-    'Set-Cookie',
-    `oauth_state=${state}; HttpOnly; Path=/api/auth/google; Max-Age=600; SameSite=Lax${redirectBase.startsWith('https://') ? '; Secure' : ''}`
-  )
+  c.header('Set-Cookie', `oauth_state=${state}; HttpOnly; Path=/api/auth/google; Max-Age=600; SameSite=Lax${secure}`)
+  // 로그인 후 돌아갈 페이지 (사이트 하단 '관리자' 링크에서 넘어온 경우)
+  const next = safeNextPath(c.req.query('next'))
+  if (next) {
+    c.header(
+      'Set-Cookie',
+      `oauth_next=${encodeURIComponent(next)}; HttpOnly; Path=/api/auth/google; Max-Age=600; SameSite=Lax${secure}`,
+      { append: true }
+    )
+  }
   const authUrl = getGoogleAuthUrl(c.env as AppEnv, redirectBase, state)
   return c.redirect(authUrl)
 })
@@ -408,7 +425,10 @@ app.get('/api/auth/google/callback', async (c) => {
 
   // state 쿠키는 한 번 쓰고 바로 삭제
   const stateMatch = (c.req.header('cookie') || '').match(/oauth_state=([^;]+)/)
+  const nextMatch = (c.req.header('cookie') || '').match(/oauth_next=([^;]+)/)
+  const nextPath = safeNextPath(nextMatch?.[1])
   c.header('Set-Cookie', 'oauth_state=; HttpOnly; Path=/api/auth/google; Max-Age=0; SameSite=Lax')
+  c.header('Set-Cookie', 'oauth_next=; HttpOnly; Path=/api/auth/google; Max-Age=0; SameSite=Lax', { append: true })
 
   if (error) {
     return c.redirect('/admin/column/login?error=google_denied')
@@ -441,7 +461,8 @@ app.get('/api/auth/google/callback', async (c) => {
 
   // 쿠키 설정 (HttpOnly, Secure, 30일) + 관리자 페이지로 리다이렉트
   setSessionCookie(c, token)
-  return c.redirect('/admin/column')
+  // 사이트에서 로그인한 경우 보던 페이지로 복귀 (관리 버튼이 켜진 상태), 아니면 칼럼 관리 목록
+  return c.redirect(nextPath || '/admin/column')
 })
 
 // 로그아웃 — 세션 쿠키 삭제
@@ -458,6 +479,9 @@ app.get('/api/auth/logout', (c) => {
     'Set-Cookie',
     'admin_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax'
   )
+  // 사이트 하단 '로그아웃'에서 온 경우 보던 페이지로 (관리자 전용 화면이면 홈으로)
+  const next = safeNextPath(c.req.query('next'))
+  if (next) return c.redirect(next.startsWith('/admin') ? '/' : next)
   return c.redirect('/admin/column/login')
 })
 
