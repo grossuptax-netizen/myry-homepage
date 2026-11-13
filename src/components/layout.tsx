@@ -86,6 +86,16 @@ export const AdminFooterLink: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
   </>
 )
 
+// ===== 사업자 정보 (맨 아래 한 줄, myhoteltax.com 과 같은 값) =====
+export const BusinessInfo: FC = () => (
+  <p class="flex flex-wrap gap-x-4 gap-y-1 text-white/55">
+    <span>상호 명륜세무회계</span>
+    <span>대표자 전창로 세무사</span>
+    <span>사업자등록번호 890-57-00386</span>
+    <span>주소 경기 고양시 덕양구 도래울로 110 4층 409호</span>
+  </p>
+)
+
 // ===== 공통 푸터 =====
 export const SiteFooter: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
   <footer id="site-footer" class="bg-navy-dark text-white/70 py-12 border-t-2 border-gold/40">
@@ -123,10 +133,13 @@ export const SiteFooter: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
           <p><i class="fas fa-clock text-gold mr-2"></i> 평일 09:00 ~ 18:00</p>
         </div>
       </div>
-      <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/40 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span>© 2026 명륜세무회계. All rights reserved.</span>
-        <span aria-hidden="true">·</span>
-        <AdminFooterLink isAdmin={isAdmin} />
+      <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/40 space-y-2">
+        <BusinessInfo />
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>© 2026 명륜세무회계. All rights reserved.</span>
+          <span aria-hidden="true">·</span>
+          <AdminFooterLink isAdmin={isAdmin} />
+        </div>
       </div>
     </div>
   </footer>

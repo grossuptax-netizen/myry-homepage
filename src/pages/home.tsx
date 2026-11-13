@@ -1,5 +1,5 @@
 import type { FC } from 'hono/jsx'
-import { FloatingConsult, AdminFooterLink } from '../components/layout'
+import { FloatingConsult, AdminFooterLink, BusinessInfo } from '../components/layout'
 
 // ===== Header / 상단 네비게이션 =====
 // isAdmin: Google OAuth 로그인(grossuptax@gmail.com) 시 관리자페이지 버튼 노출
@@ -516,10 +516,13 @@ const Footer: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
           <p><i class="fas fa-clock text-gold mr-2"></i> 평일 09:00 ~ 18:00</p>
         </div>
       </div>
-      <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/40 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span>© 2026 명륜세무회계. All rights reserved.</span>
-        <span aria-hidden="true">·</span>
-        <AdminFooterLink isAdmin={isAdmin} />
+      <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/40 space-y-2">
+        <BusinessInfo />
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>© 2026 명륜세무회계. All rights reserved.</span>
+          <span aria-hidden="true">·</span>
+          <AdminFooterLink isAdmin={isAdmin} />
+        </div>
       </div>
     </div>
   </footer>
