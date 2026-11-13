@@ -39,7 +39,9 @@ jobs:
       # 처음 한 번만 프로젝트가 만들어지고, 이미 있으면 그냥 넘어갑니다.
       - name: Create Pages project if missing
         run: |
-          if npx wrangler pages project list 2>/dev/null | grep -q "$PROJECT_NAME"; then
+          # 이름이 정확히 같은 프로젝트만 확인 (jung6tax-demo 같은 비슷한 이름과 헷갈리지 않도록)
+          if curl -sf -o /dev/null -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT_NAME"; then
             echo "Pages project '$PROJECT_NAME' already exists"
           else
             npx wrangler pages project create "$PROJECT_NAME" --production-branch main
