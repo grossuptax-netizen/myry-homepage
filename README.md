@@ -29,10 +29,10 @@
 EY 코리아 인사이트 페이지(ey.com/ko_kr/insights) 구조를 레퍼런스로 한 세무 칼럼 섹션.
 
 - **칼럼 목록 페이지** (`/column`) – 상단 카테고리 탭(sticky) + 카드형 그리드(반응형: 모바일 1열 / 태블릿 2열 / PC 3열), 더보기 버튼, 카드 진입 애니메이션
-- **카테고리 필터** (`/column/:category`) – 6개 카테고리별 필터링
+- **카테고리 필터** (`/column/:category`) – 7개 카테고리별 필터링
 - **칼럼 상세 페이지** (`/column/:category/:slug`) – H1 제목, 카테고리 라벨, 작성자/발행일/조회수, 대표 이미지, 본문(.prose-column), 관련 칼럼 3개 추천, 상담신청 CTA
 - **관리자 페이지** (`/admin/column`) – 비밀번호 보호 로그인, 칼럼 목록(수정/삭제), 리치 텍스트 에디터(굵게/이탤릭/링크/이미지/표), 썸네일 업로드+미리보기, 슬러그 자동생성, 메타 설명 160자 카운트
-- **6개 카테고리**: 부가가치세(vat), 원가·재고관리(inventory), 인건비·노무(labor), 사업자유형·법인전환(business-type), 정부지원금·정책자금(subsidy), 세법개정·시사(tax-news)
+- **7개 카테고리**: 부가가치세(vat), 종합소득세(income-tax), 법인세(corporate-tax), 인건비·노무(labor), 창업·사업자등록(business-type), 정부지원금·정책자금(subsidy), 세법개정·시사(tax-news)
 - **더미 데이터 18개** (카테고리별 3개) – 모든 콘텐츠는 정육점·축산물 세무 관련만
 
 ### 3. SEO 인프라 (신규 추가)
@@ -59,7 +59,7 @@ EY 코리아 인사이트 페이지(ey.com/ko_kr/insights) 구조를 레퍼런�
 | GET | `/` | 메인 랜딩 페이지 | - |
 | POST | `/api/consult` | 상담 신청 접수 | JSON Body |
 | GET | `/column` | 칼럼 목록 (전체) | 카테고리 탭 + 카드 그리드 |
-| GET | `/column/:category` | 카테고리별 칼럼 목록 | vat/inventory/labor/business-type/subsidy/tax-news |
+| GET | `/column/:category` | 카테고리별 칼럼 목록 | vat/income-tax/corporate-tax/labor/business-type/subsidy/tax-news |
 | GET | `/column/:category/:slug` | 칼럼 상세 | SEO/OG/JSON-LD 포함 |
 | GET | `/admin/column/login` | 관리자 로그인 (Google OAuth) | robots noindex |
 | GET | `/admin/column` | 관리자 칼럼 목록 | robots noindex, 쿠키 세션 + 활성 관리자 재확인 |
@@ -79,7 +79,7 @@ EY 코리아 인사이트 페이지(ey.com/ko_kr/insights) 구조를 레퍼런�
 | GET | `/static/style.css` | 커스텀 스타일 | .prose-column, .prose-admin 포함 |
 | GET | `/static/column-list.js` | 칼럼 목록 스크립트 | 더보기, 카드 애니메이션 |
 | GET | `/static/admin.js` | 관리자 스크립트 | 로그인, 리치 에디터 |
-| GET | `/static/columns/*.svg` | 카테고리별 썸네일 | 6개 SVG |
+| GET | `/static/columns/*.svg` | 카테고리별 썸네일 | 7개 SVG |
 
 ### `/api/consult` 파라미터
 JSON Body: `name`(필수), `phone`(필수), `business`(선택), `message`(선택), `_gotcha`(honeypot), `_form_loaded_at`(봇 차단)
@@ -180,7 +180,7 @@ webapp/
 │       ├── app.js             # 랜딩 페이지 스크립트
 │       ├── column-list.js     # 칼럼 목록 스크립트
 │       ├── admin.js           # 관리자 스크립트
-│       └── columns/*.svg      # 6개 카테고리 SVG 썸네일
+│       └── columns/*.svg      # 7개 카테고리 SVG 썸네일
 ├── ecosystem.config.cjs       # PM2 설정
 ├── wrangler.jsonc             # Cloudflare Pages 설정
 ├── vite.config.ts             # Vite 빌드 설정

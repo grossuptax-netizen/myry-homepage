@@ -19,9 +19,9 @@
     <path d="M-18,-20 L18,-20 L18,22 L-18,22 Z M-12,-12 L-4,-12 L-4,-4 L-12,-4 Z M2,-12 L12,-12 L12,-4 L2,-4 Z M-12,4 L-4,4 L-4,12 L-12,12 Z M2,4 L12,4 L12,12 L2,12 Z M-8,22 L-8,26 M8,22 L8,26" stroke="white" stroke-width="2" fill="none" stroke-linejoin="round"/>
   </g>
   <!-- 카테고리 라벨 (한글) -->
-  <text x="320" y="275" font-family="Noto Sans KR, sans-serif" font-size="28" font-weight="900" fill="white" text-anchor="middle">사업자유형·법인전환</text>
+  <text x="320" y="275" font-family="Noto Sans KR, sans-serif" font-size="28" font-weight="900" fill="white" text-anchor="middle">창업·사업자등록</text>
   <!-- 카테고리 영문 -->
-  <text x="320" y="305" font-family="Noto Sans KR, sans-serif" font-size="14" font-weight="500" fill="white" opacity="0.7" text-anchor="middle" letter-spacing="2">BUSINESS TYPE</text>
+  <text x="320" y="305" font-family="Noto Sans KR, sans-serif" font-size="14" font-weight="500" fill="white" opacity="0.7" text-anchor="middle" letter-spacing="2">STARTUP</text>
   <!-- 하단 브랜드 바 -->
   <rect x="0" y="385" width="640" height="15" fill="#C9A84C" opacity="0.8"/>
 </svg>

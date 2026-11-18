@@ -1,5 +1,6 @@
 import type { FC } from 'hono/jsx'
 import { CATEGORIES, getCategoryLabel, todayKst } from '../lib/columns'
+import { getSeoScore, SEO_DONE_SCORE } from '../lib/seo-score'
 import type { Column } from '../lib/columns'
 import type { AdminEmail } from '../lib/db'
 import { SiteHeader, SiteFooter, CommonScript } from '../components/layout'
@@ -118,6 +119,26 @@ export const AdminLoginPage: FC<AdminLoginPageProps> = ({ oauthReady }) => (
   </>
 )
 
+// ===== SEO 점수 표시 (글쓰기 화면 SEO 점검과 같은 점수, 80점 이상이면 완료) =====
+const SeoBadge: FC<{ score: number }> = ({ score }) =>
+  score >= SEO_DONE_SCORE ? (
+    <span
+      class="inline-flex items-center gap-1 text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-full"
+      title={`SEO 점수 ${score}점`}
+    >
+      <i class="fas fa-circle-check"></i> SEO 완료
+    </span>
+  ) : (
+    <span
+      class={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full border ${
+        score >= 55 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-red-700 bg-red-50 border-red-200'
+      }`}
+      title={`${SEO_DONE_SCORE}점 이상이면 SEO 완료로 표시됩니다`}
+    >
+      {score}점
+    </span>
+  )
+
 // ===== 관리자 칼럼 목록 페이지 =====
 interface AdminColumnListPageProps {
   columns: Column[] // 라우트에서 D1 조회 후 전달
@@ -158,7 +179,7 @@ export const AdminColumnListPage: FC<AdminColumnListPageProps> = ({ columns, use
                 <tr>
                   <th class="px-4 py-3 text-left font-bold whitespace-nowrap">카테고리</th>
                   <th class="px-4 py-3 text-left font-bold">제목</th>
-                  <th class="px-4 py-3 text-left font-bold whitespace-nowrap">작성자</th>
+                  <th class="px-4 py-3 text-center font-bold whitespace-nowrap">SEO</th>
                   <th class="px-4 py-3 text-left font-bold whitespace-nowrap">발행일</th>
                   <th class="px-4 py-3 text-right font-bold whitespace-nowrap">조회</th>
                   <th class="px-4 py-3 text-center font-bold whitespace-nowrap">관리</th>
@@ -191,7 +212,9 @@ export const AdminColumnListPage: FC<AdminColumnListPageProps> = ({ columns, use
                         </a>
                       </div>
                     </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-ink/70">{col.author}</td>
+                    <td class="px-4 py-3 text-center whitespace-nowrap">
+                      <SeoBadge score={getSeoScore(col)} />
+                    </td>
                     <td class="px-4 py-3 whitespace-nowrap text-ink/70">{col.publishedAt}</td>
                     <td class="px-4 py-3 text-right text-ink/70 whitespace-nowrap">{col.views}</td>
                     <td class="px-4 py-3 text-center whitespace-nowrap">
@@ -633,22 +656,6 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
               </div>
             </div>
 
-            {/* 작성자 */}
-            <div class="bg-white rounded-2xl border border-gold/30 p-6 shadow-sm">
-              <label class="block text-sm font-bold mb-2 text-navy" for="f-author">
-                작성자 <span class="text-brand">*</span>
-              </label>
-              <input
-                id="f-author"
-                name="author"
-                type="text"
-                required
-                value={col?.author ?? '김명륜 세무사'}
-                placeholder="세무사명"
-                class="w-full rounded-xl border border-navy/15 bg-cream-soft px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition"
-              />
-            </div>
-
             {/* URL 슬러그 */}
             <div class="bg-white rounded-2xl border border-gold/30 p-6 shadow-sm">
               <label class="block text-sm font-bold mb-2 text-navy" for="f-slug">
@@ -803,6 +810,7 @@ export const AdminColumnFormPage: FC<AdminColumnFormPageProps> = ({ mode, column
                     </p>
                   </div>
                   <ul id="seo-checklist" class="space-y-1.5 text-sm"></ul>
+                  <p class="mt-3 text-xs text-white/50">80점 이상이면 칼럼 관리 목록에 'SEO 완료'로 표시됩니다.</p>
                   <div class="mt-4 flex flex-wrap gap-2">
                     <button type="button" id="seo-fix-alt" class="rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/10 transition">
                       <i class="fas fa-image mr-1"></i>사진 설명(alt) 자동 채우기

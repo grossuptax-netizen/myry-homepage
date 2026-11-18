@@ -12,7 +12,6 @@ import { cloudinaryConfig, importImage, CLOUDINARY_FOLDER } from './lib/cloudina
 import {
   getAllColumns,
   getAllColumnsForAdmin,
-  getColumnsByCategoryDb,
   getColumnBySlugDb,
   getColumnByIdDb,
   getRelatedColumnsDb,
@@ -207,21 +206,52 @@ app.post('/api/consult', async (c) => {
 
 // ===== 칼럼 게시판 라우트 (D1 연동, async) =====
 
+// ===== 칼럼 목록 페이지 나누기 (한 페이지 12개, 주소 ?page=2) =====
+const COLUMN_PAGE_SIZE = 12
+
+type ColumnListing =
+  | { redirect: string }
+  | { columns: Column[]; page: number; totalPages: number; total: number; counts: Record<string, number>; pageSuffix: string; canonicalQuery: string }
+
+function listColumnsPage(all: Column[], categorySlug: string | undefined, basePath: string, pageParam: string | undefined): ColumnListing {
+  const counts: Record<string, number> = { '': all.length }
+  for (const col of all) counts[col.category] = (counts[col.category] || 0) + 1
+  const filtered = categorySlug ? all.filter((col) => col.category === categorySlug) : all
+  const totalPages = Math.max(1, Math.ceil(filtered.length / COLUMN_PAGE_SIZE))
+  // 1페이지는 ?page 없는 주소 하나로, 잘못되거나 없는 페이지는 마지막 페이지로
+  if (pageParam !== undefined) {
+    const n = /^\d+$/.test(pageParam) ? Number(pageParam) : NaN
+    if (!(n >= 2)) return { redirect: basePath }
+    if (n > totalPages) return { redirect: totalPages > 1 ? `${basePath}?page=${totalPages}` : basePath }
+  }
+  const page = pageParam ? Number(pageParam) : 1
+  return {
+    columns: filtered.slice((page - 1) * COLUMN_PAGE_SIZE, page * COLUMN_PAGE_SIZE),
+    page,
+    totalPages,
+    total: filtered.length,
+    counts,
+    pageSuffix: page > 1 ? ` (${page}페이지)` : '',
+    canonicalQuery: page > 1 ? `?page=${page}` : '',
+  }
+}
+
 // 칼럼 목록 페이지 - 전체보기
 app.get('/column', async (c) => {
   const baseUrl = getBaseUrl(c)
-  const columns = await getAllColumns(c.env.DB)
+  const listing = listColumnsPage(await getAllColumns(c.env.DB), undefined, '/column', c.req.query('page'))
+  if ('redirect' in listing) return c.redirect(listing.redirect, 301)
   c.set('head', {
-    title: '정육점 세무 칼럼 | 명륜세무회계',
+    title: `정육점 세무 칼럼${listing.pageSuffix} | 명륜세무회계`,
     description:
       '정육점·축산물 세무 전문가의 인사이트. 의제매입세액공제, 한우·한돈 매입 관리, 축산물이력제, 정부지원금 등 정육점 세무 실무 칼럼을 제공합니다.',
     ogTitle: '정육점 세무 칼럼 | 명륜세무회계',
     ogDescription:
       '정육점·축산물 세무 전문가의 인사이트 칼럼. 의제매입세액공제부터 정부지원금까지.',
-    canonical: `${baseUrl}/column`,
+    canonical: `${baseUrl}/column${listing.canonicalQuery}`,
   } as HeadData)
   const { authed } = await checkAdminAuthCookie(c)
-  return c.render(<ColumnListPage activeCategory={undefined} columns={columns} isAdmin={authed} />)
+  return c.render(<ColumnListPage activeCategory={undefined} {...listing} isAdmin={authed} />)
 })
 
 // 칼럼 목록 페이지 - 카테고리 필터
@@ -234,16 +264,17 @@ app.get('/column/:categorySlug', async (c) => {
   }
 
   const baseUrl = getBaseUrl(c)
-  const columns = await getColumnsByCategoryDb(c.env.DB, categorySlug)
+  const listing = listColumnsPage(await getAllColumns(c.env.DB), categorySlug, `/column/${categorySlug}`, c.req.query('page'))
+  if ('redirect' in listing) return c.redirect(listing.redirect, 301)
   c.set('head', {
-    title: `${category.label} 칼럼 | 명륜세무회계 정육점 세무`,
+    title: `${category.label} 칼럼${listing.pageSuffix} | 명륜세무회계 정육점 세무`,
     description: category.desc,
     ogTitle: `${category.label} 칼럼 | 명륜세무회계`,
     ogDescription: category.desc,
-    canonical: `${baseUrl}/column/${categorySlug}`,
+    canonical: `${baseUrl}/column/${categorySlug}${listing.canonicalQuery}`,
   } as HeadData)
   const { authed } = await checkAdminAuthCookie(c)
-  return c.render(<ColumnListPage activeCategory={categorySlug} columns={columns} isAdmin={authed} />)
+  return c.render(<ColumnListPage activeCategory={categorySlug} {...listing} isAdmin={authed} />)
 })
 
 // 칼럼 상세 페이지: /column/[카테고리]/[슬러그]

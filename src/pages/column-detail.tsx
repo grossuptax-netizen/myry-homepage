@@ -22,9 +22,9 @@ const ArticleJsonLd: FC<{ column: Column; baseUrl: string }> = ({ column, baseUr
     datePublished: column.publishedAt,
     dateModified: getModifiedDate(column),
     author: {
-      '@type': 'Person',
-      name: column.author,
-      jobTitle: '세무사',
+      '@type': 'Organization',
+      name: '명륜세무회계',
+      url: baseUrl,
     },
     publisher: {
       '@type': 'Organization',
@@ -169,7 +169,6 @@ export function buildColumnHead(
       <BreadcrumbJsonLd column={column} baseUrl={baseUrl} />
       <meta property="article:published_time" content={column.publishedAt} />
       <meta property="article:modified_time" content={getModifiedDate(column)} />
-      <meta property="article:author" content={column.author} />
       <meta property="article:section" content={catLabel} />
       {shareImage.width && <meta property="og:image:width" content={String(shareImage.width)} />}
       {shareImage.height && <meta property="og:image:height" content={String(shareImage.height)} />}
@@ -262,12 +261,8 @@ export const ColumnDetailPage: FC<ColumnDetailPageProps> = ({ column, related, b
               {column.title}
             </h1>
 
-            {/* 작성자, 발행일 */}
+            {/* 발행일, 조회수 */}
             <div class="mt-5 flex flex-wrap items-center gap-4 text-sm text-ink/60">
-              <span class="flex items-center gap-1.5">
-                <i class="fas fa-user-pen text-gold"></i>
-                <span class="font-medium text-navy/80">{column.author}</span>
-              </span>
               <span class="flex items-center gap-1.5">
                 <i class="fas fa-calendar text-gold"></i>
                 <time datetime={column.publishedAt}>{column.publishedAt.replace(/-/g, '. ')}</time>

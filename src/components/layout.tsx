@@ -130,7 +130,7 @@ export const SiteFooter: FC<{ isAdmin?: boolean }> = ({ isAdmin }) => (
               이메일 주소 보기
             </a>
           </p>
-          <p><i class="fas fa-clock text-gold mr-2"></i> 평일 09:00 ~ 18:00</p>
+          <p><i class="fas fa-clock text-gold mr-2"></i> 평일 10:00 ~ 18:00</p>
         </div>
       </div>
       <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/40 space-y-2">

@@ -6,7 +6,8 @@
 
 export type CategorySlug =
   | 'vat'
-  | 'inventory'
+  | 'income-tax'
+  | 'corporate-tax'
   | 'labor'
   | 'business-type'
   | 'subsidy'
@@ -27,10 +28,16 @@ export const CATEGORIES: Category[] = [
     desc: '정육점 의제매입세액공제, 면세 농축산물 매입, 부가세 신고 등 부가가치세 관련 세무 칼럼',
   },
   {
-    slug: 'inventory',
-    label: '원가·재고관리',
-    icon: 'fa-boxes-stacked',
-    desc: '한우·한돈 매입 단가, 부분육 마진, 정육 재고·로스율 관리 등 원가 및 재고 관리 세무 칼럼',
+    slug: 'income-tax',
+    label: '종합소득세',
+    icon: 'fa-file-invoice-dollar',
+    desc: '정육점 사장님의 종합소득세 신고, 경비 처리, 장부 작성, 절세 방법 등 종합소득세 칼럼',
+  },
+  {
+    slug: 'corporate-tax',
+    label: '법인세',
+    icon: 'fa-landmark',
+    desc: '정육 법인의 법인세 신고, 대표자 급여와 가지급금, 세액공제 등 법인세 칼럼',
   },
   {
     slug: 'labor',
@@ -40,9 +47,9 @@ export const CATEGORIES: Category[] = [
   },
   {
     slug: 'business-type',
-    label: '사업자유형·법인전환',
-    icon: 'fa-building',
-    desc: '식육판매업 인허가, 개인→법인 전환, 사업자 유형 선택 등 사업자 형태 관련 세무 칼럼',
+    label: '창업·사업자등록',
+    icon: 'fa-store',
+    desc: '정육점 창업 준비, 식육판매업 영업신고, 사업자등록, 간이·일반·법인 사업자 선택 등 창업 관련 세무 칼럼',
   },
   {
     slug: 'subsidy',
