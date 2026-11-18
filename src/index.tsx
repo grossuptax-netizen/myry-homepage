@@ -260,6 +260,8 @@ app.get('/column/:categorySlug', async (c) => {
   const category = getCategory(categorySlug)
 
   if (!category) {
+    // 부가세 탭으로 합쳐진 예전 분류 주소
+    if (categorySlug === 'income-tax' || categorySlug === 'corporate-tax') return c.redirect('/column/vat', 301)
     return c.redirect('/column')
   }
 

@@ -6,8 +6,6 @@
 
 export type CategorySlug =
   | 'vat'
-  | 'income-tax'
-  | 'corporate-tax'
   | 'labor'
   | 'business-type'
   | 'subsidy'
@@ -23,21 +21,9 @@ export interface Category {
 export const CATEGORIES: Category[] = [
   {
     slug: 'vat',
-    label: '부가가치세',
+    label: '부가세·종합소득세·법인세',
     icon: 'fa-receipt',
-    desc: '정육점 의제매입세액공제, 면세 농축산물 매입, 부가세 신고 등 부가가치세 관련 세무 칼럼',
-  },
-  {
-    slug: 'income-tax',
-    label: '종합소득세',
-    icon: 'fa-file-invoice-dollar',
-    desc: '정육점 사장님의 종합소득세 신고, 경비 처리, 장부 작성, 절세 방법 등 종합소득세 칼럼',
-  },
-  {
-    slug: 'corporate-tax',
-    label: '법인세',
-    icon: 'fa-landmark',
-    desc: '정육 법인의 법인세 신고, 대표자 급여와 가지급금, 세액공제 등 법인세 칼럼',
+    desc: '정육점 의제매입세액공제와 부가세 신고, 사장님의 종합소득세 신고·절세, 정육 법인의 법인세 신고 등 세금 신고 칼럼',
   },
   {
     slug: 'labor',
