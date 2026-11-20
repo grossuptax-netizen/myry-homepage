@@ -143,6 +143,16 @@ document.addEventListener('DOMContentLoaded', () => {
           if (typeof window.gtag === 'function') {
             window.gtag('event', 'conversion', { send_to: 'AW-17927385270/ZJznCICO6rsdELbhuORC' })
           }
+          /* 네이버 광고 전환: 상담신청(lead). 네이버 쪽 오류가 나도 접수 완료 안내는 그대로 나오도록 감쌈 */
+          try {
+            if (window.wcs) {
+              if (!window.wcs_add) window.wcs_add = {}
+              window.wcs_add['wa'] = 's_2ae8d63aea30'
+              var _conv = {}
+              _conv.type = 'lead'
+              window.wcs.trans(_conv)
+            }
+          } catch (_) {}
           result.innerHTML =
             '<i class="fas fa-circle-check mr-1"></i> 상담 신청이 정상적으로 접수되었습니다. 빠른 시일 내에 연락드리겠습니다.'
           result.className = 'text-sm text-center success'

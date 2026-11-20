@@ -1,6 +1,7 @@
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import type { FC, Child } from 'hono/jsx'
 import { GoogleTagHead, GoogleTagBody, isLiveHost } from './components/google-tag'
+import { NaverCommonScript } from './components/naver-tag'
 
 // ===== 동적 head 데이터 타입 =====
 // 각 페이지에서 c.set('head', {...}) 로 전달하면 renderer가 <head>에 반영
@@ -140,6 +141,8 @@ export const renderer = jsxRenderer(({ children }) => {
       <body class="font-sans text-ink bg-cream antialiased">
         {googleTag && <GoogleTagBody />}
         {children}
+        {/* 네이버 광고 전환추적: 구글 태그와 같은 조건 (실제 주소의 공개 페이지만) */}
+        {googleTag && <NaverCommonScript />}
       </body>
     </html>
   )
