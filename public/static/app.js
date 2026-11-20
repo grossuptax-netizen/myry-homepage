@@ -139,6 +139,10 @@ document.addEventListener('DOMContentLoaded', () => {
         })
 
         if (res.ok) {
+          /* 구글 광고 전환: 상담신청완료 (실제로 접수된 경우에만) */
+          if (typeof window.gtag === 'function') {
+            window.gtag('event', 'conversion', { send_to: 'AW-17927385270/ZJznCICO6rsdELbhuORC' })
+          }
           result.innerHTML =
             '<i class="fas fa-circle-check mr-1"></i> 상담 신청이 정상적으로 접수되었습니다. 빠른 시일 내에 연락드리겠습니다.'
           result.className = 'text-sm text-center success'

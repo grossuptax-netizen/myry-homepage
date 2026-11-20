@@ -1,5 +1,6 @@
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import type { FC, Child } from 'hono/jsx'
+import { GoogleTagHead, GoogleTagBody } from './components/google-tag'
 
 // ===== 동적 head 데이터 타입 =====
 // 각 페이지에서 c.set('head', {...}) 로 전달하면 renderer가 <head>에 반영
@@ -85,12 +86,15 @@ export const renderer = jsxRenderer(({ children }) => {
   // 시연용 사이트 등 SITE_NOINDEX=1 이 설정된 곳은 모든 페이지를 검색엔진 수집 제외
   // (실제 사이트와 같은 글이 검색에서 경쟁하지 않도록)
   const robots = c.env?.SITE_NOINDEX === '1' ? 'noindex, nofollow' : head.robots
+  // 구글 태그: 실제 사이트의 공개 페이지에만 (관리자 화면·시연용 사이트 제외)
+  const googleTag = c.env?.SITE_NOINDEX !== '1' && !c.req.path.startsWith('/admin')
 
   return (
     <html lang="ko">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {googleTag && <GoogleTagHead />}
         {/* '네이버 글 담기' 수신 — 페이지가 열리자마자 메시지를 들어야 하므로 head 맨 앞에서 실행 */}
         <script src="/static/naver-clip.js"></script>
         <title>{title}</title>
@@ -131,7 +135,10 @@ export const renderer = jsxRenderer(({ children }) => {
         <script dangerouslySetInnerHTML={{ __html: TAILWIND_CONFIG }} />
         <link href="/static/style.css" rel="stylesheet" />
       </head>
-      <body class="font-sans text-ink bg-cream antialiased">{children}</body>
+      <body class="font-sans text-ink bg-cream antialiased">
+        {googleTag && <GoogleTagBody />}
+        {children}
+      </body>
     </html>
   )
 })
