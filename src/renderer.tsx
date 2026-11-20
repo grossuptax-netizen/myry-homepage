@@ -1,6 +1,6 @@
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import type { FC, Child } from 'hono/jsx'
-import { GoogleTagHead, GoogleTagBody } from './components/google-tag'
+import { GoogleTagHead, GoogleTagBody, isLiveHost } from './components/google-tag'
 
 // ===== 동적 head 데이터 타입 =====
 // 각 페이지에서 c.set('head', {...}) 로 전달하면 renderer가 <head>에 반영
@@ -86,8 +86,10 @@ export const renderer = jsxRenderer(({ children }) => {
   // 시연용 사이트 등 SITE_NOINDEX=1 이 설정된 곳은 모든 페이지를 검색엔진 수집 제외
   // (실제 사이트와 같은 글이 검색에서 경쟁하지 않도록)
   const robots = c.env?.SITE_NOINDEX === '1' ? 'noindex, nofollow' : head.robots
-  // 구글 태그: 실제 사이트의 공개 페이지에만 (관리자 화면·시연용 사이트 제외)
-  const googleTag = c.env?.SITE_NOINDEX !== '1' && !c.req.path.startsWith('/admin')
+  // 구글 태그: 실제 주소(jung6tax.com)의 공개 페이지에만
+  // (내 컴퓨터 미리보기·시연용 사이트·관리자 화면에서는 시험 접수가 광고 전환으로 잡히지 않도록 뺌)
+  const googleTag =
+    isLiveHost(new URL(c.req.url).hostname) && c.env?.SITE_NOINDEX !== '1' && !c.req.path.startsWith('/admin')
 
   return (
     <html lang="ko">

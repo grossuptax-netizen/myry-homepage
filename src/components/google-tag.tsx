@@ -2,6 +2,10 @@
 // - 모든 공개 페이지의 <head> 에 들어감 (renderer.tsx)
 // - 관리자 화면과 시연용 사이트(SITE_NOINDEX=1)에는 넣지 않음 → 내부 방문이 광고 통계에 섞이지 않도록
 // - 전환 '상담신청완료'는 상담신청 폼이 실제로 접수됐을 때 public/static/app.js 에서 보냄
+// 태그를 넣는 실제 홈페이지 주소 (localhost 미리보기, *.pages.dev 같은 다른 주소에는 넣지 않음)
+const LIVE_HOSTS = ['jung6tax.com', 'www.jung6tax.com']
+export const isLiveHost = (hostname: string) => LIVE_HOSTS.includes(hostname.toLowerCase())
+
 export const GTM_ID = 'GTM-MF5G54Z5'
 export const GOOGLE_ADS_ID = 'AW-17927385270'
 
